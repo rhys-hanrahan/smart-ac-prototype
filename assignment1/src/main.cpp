@@ -189,6 +189,34 @@ void saveConfig() {
   configFile.close();
 }
 
+// Load HTML file from SPIFFS
+String loadHtmlFile(const char* path) {
+  File file = SPIFFS.open(path, "r");
+  if (!file) {
+    Serial.printf("Failed to open file %s\n", path);
+    return String();
+  }
+  String content = file.readString();
+  file.close();
+  return content;
+}
+
+// Serve page by loading template, navbar, and content
+void servePage(AsyncWebServerRequest *request, const char* pageTitle, const char* contentPath) {
+  // Load the template, navbar, and content
+  String html = loadHtmlFile("/template.html");
+  String navbar = loadHtmlFile("/navbar.html");
+  String pageContent = loadHtmlFile(contentPath);
+
+  // Replace placeholders
+  html.replace("{{NAVBAR}}", navbar);
+  html.replace("{{PAGE_TITLE}}", pageTitle);
+  html.replace("{{PAGE_CONTENT}}", pageContent);
+
+  // Send the final HTML
+  request->send(200, "text/html", html);
+}
+
 void setupWebServer() {
 
   // Redirect root ("/") to "/dashboard"
@@ -210,37 +238,20 @@ void setupWebServer() {
   server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("[HTTP] GET /dashboard");
 
-    /* I don't think I can protect this route with JWT token as the client must send the token in the header
-
-    // Check if the Authorization header is present
-    if (!request->hasHeader("Authorization")) {
-      Serial.println("[HTTP] GET /dashboard - No Authorization header");
-      request->redirect("/login");  // Redirect to /login if no Authorization header
-      return;
-    }
-
-    // Get the Authorization header and verify the token format
-    String authHeader = request->header("Authorization");
-    if (!authHeader.startsWith("Bearer ")) {
-      Serial.println("[HTTP] GET /dashboard - Invalid token format");
-      request->redirect("/login");  // Redirect if the token format is incorrect
-      return;
-    }
-
-    // Extract and validate the token
-    String token = authHeader.substring(7);
-    if (!isValidJWTToken(token)) {
-      Serial.println("[HTTP] GET /dashboard - Invalid token");
-      request->redirect("/login");  // Redirect if the token is invalid
-      return;
-    } */
-
     // If token is valid, serve the dashboard page
-    request->send(SPIFFS, "/dashboard.html", "text/html");
+    servePage(request, "Dashboard Overview", "/dashboard_content.html");
   });
 
   server.on("/dashboard.html", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->redirect("/dashboard");
+  });
+
+  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
+    servePage(request, "Settings", "/settings_content.html");
+  });
+
+  server.on("/rules", HTTP_GET, [](AsyncWebServerRequest *request) {
+    servePage(request, "Rules", "/rules_content.html");
   });
 
   server.serveStatic("/login", SPIFFS, "/login.html");

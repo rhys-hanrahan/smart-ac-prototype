@@ -1,0 +1,33 @@
+
+  <!-- Main Content -->
+  <div class="container mt-5">
+    <h2>Dashboard Overview</h2>
+
+    <p id="message" class="text-muted">Thanks for using SmartAC!</p>
+    
+    <!-- Temperature and Humidity Chart -->
+    <div class="mb-4">
+      <h4>Temperature & Humidity Over Time</h4>
+      <canvas id="tempHumidityChart" width="400" height="200"></canvas>
+    </div>
+
+    <!-- Activity Log Table -->
+    <div>
+      <h4>Activity Log</h4>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Action</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="activityLog">
+          <!-- Rows will be populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

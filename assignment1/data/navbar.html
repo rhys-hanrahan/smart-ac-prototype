@@ -1,0 +1,34 @@
+<!-- navbar.html -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <a class="navbar-brand d-flex align-items-center" href="/dashboard">
+      <i class="fas fa-cloud-sun-rain fa-lg text-primary me-2"></i>
+      Smart AC Dashboard
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/dashboard" id="dashboardLink">
+            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/settings" id="settingsLink">
+            <i class="fas fa-cog me-1"></i> Settings
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/rules" id="rulesLink">
+            <i class="fas fa-list me-1"></i> Rules
+          </a>
+        </li>
+      </ul>
+      <button id="logoutButton" class="btn btn-outline-danger">
+        <i class="fas fa-sign-out-alt me-1"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
