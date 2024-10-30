@@ -183,27 +183,28 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
   // API endpoint to serve temperature, humidity, timestamps, and activity log data
   server.on("/api/data", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("[HTTP] GET /api/data");
+
     // Check if the Authorization header is present
     if (!request->hasHeader("Authorization")) {
-      Serial.println("[HTTP] GET /api/data - No Authorization header");
-      request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
-      return;
+        Serial.println("[HTTP] GET /api/data - No Authorization header");
+        request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+        return;
     }
 
     // Get the Authorization header and verify the token format
     String authHeader = request->header("Authorization");
     if (!authHeader.startsWith("Bearer ")) {
-      Serial.println("[HTTP] GET /api/data - Invalid token format");
-      request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
-      return;
+        Serial.println("[HTTP] GET /api/data - Invalid token format");
+        request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+        return;
     }
 
     // Extract and validate the token
     String token = authHeader.substring(7);
     if (!isValidJWTToken(token)) {
-      Serial.println("[HTTP] GET /api/data - Invalid token");
-      request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
-      return;
+        Serial.println("[HTTP] GET /api/data - Invalid token");
+        request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+        return;
     }
 
     // Retrieve the "period" query parameter to determine the requested time range
@@ -217,11 +218,9 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
     std::vector<float> filteredTemperatureData;
     std::vector<float> filteredHumidityData;
     std::vector<String> filteredTimestamps;
-    std::vector<ActivityLogEntry> filteredActivityLog;
 
     // Filter data based on the requested period
     if (period == "day") {
-        // Populate filtered data arrays with "day" data (last 24 hours)
         filterDataForDay(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
     } else if (period == "week") {
         filterDataForWeek(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
@@ -239,18 +238,18 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
 
     // Populate temperature and humidity data
     JsonArray temperatureArray = jsonDoc.createNestedArray("temperature");
-    for (float temp : temperatureData) {
-      temperatureArray.add(temp);
+    for (float temp : filteredTemperatureData) {
+        temperatureArray.add(temp);
     }
 
     JsonArray humidityArray = jsonDoc.createNestedArray("humidity");
-    for (float humidity : humidityData) {
-      humidityArray.add(humidity);
+    for (float hum : filteredHumidityData) {
+        humidityArray.add(hum);
     }
 
     JsonArray timestampArray = jsonDoc.createNestedArray("timestamps");
-    for (String time : timestamps) {
-      timestampArray.add(time);
+    for (String ts : filteredTimestamps) {
+        timestampArray.add(ts);
     }
 
     // Populate activity log

@@ -6,10 +6,7 @@
 #include <time.h>
 #include <data.h>
 #include <vector>
-
-std::vector<float> temperatureData = {22.5, 23.0, 22.8, 23.1};
-std::vector<float> humidityData = {55.0, 56.2, 54.8, 55.5};
-std::vector<String> timestamps = {"10:00", "10:30", "11:00", "11:30"};
+#include <numeric>
 
 // Define and initialize the activity log
 std::vector<ActivityLogEntry> activityLog = {
@@ -18,53 +15,168 @@ std::vector<ActivityLogEntry> activityLog = {
   {"11:10", "Turn AC Off", "Temperature stable"},
 };
 
-// Function to safely save the 5-minute data to SPIFFS
-void save5MinuteData() {
-  // Create a JSON document
-  StaticJsonDocument<4096> doc;
-  JsonArray tempArray = doc.createNestedArray("temperatureData");
-  JsonArray humArray = doc.createNestedArray("humidityData");
+// Maximum points to retain for each data interval
+const size_t MAX_5MIN_POINTS = 2016;   // 1 week
+const size_t MAX_HOURLY_POINTS = 720;  // 1 month
+const size_t MAX_6HOUR_POINTS = 1460;  // 1 year
+
+
+// Define global data vectors
+std::vector<float> temperatureData5Min;
+std::vector<float> humidityData5Min;
+std::vector<String> timestamps5Min;
+
+std::vector<float> temperatureDataHourly;
+std::vector<float> humidityDataHourly;
+std::vector<String> timestampsHourly;
+
+std::vector<float> temperatureData6Hour;
+std::vector<float> humidityData6Hour;
+std::vector<String> timestamps6Hour;
+
+// Helper function to get the current timestamp as a String
+String getCurrentTimestamp() {
+  time_t now = time(nullptr);
+  struct tm* timeInfo = localtime(&now);
+  char buffer[20];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", timeInfo);
+  return String(buffer);
+}
+
+// Load data from SPIFFS on boot
+void loadData() {
+  Serial.println("Loading data from SPIFFS");
+  SPIFFS.begin(true);
+
+  // Load 5-minute data
+  File file = SPIFFS.open("/data_5min.json", FILE_READ);
+  if (file) {
+    StaticJsonDocument<8192> doc;
+    deserializeJson(doc, file);
+    for (float temp : doc["temperature"].as<JsonArray>()) temperatureData5Min.push_back(temp);
+    for (float hum : doc["humidity"].as<JsonArray>()) humidityData5Min.push_back(hum);
+    for (String ts : doc["timestamps"].as<JsonArray>()) timestamps5Min.push_back(ts);
+    file.close();
+  }
+  Serial.printf("Loaded %d 5-minute data points\n", temperatureData5Min.size());
+
+  // Load hourly data
+  file = SPIFFS.open("/data_hourly.json", FILE_READ);
+  if (file) {
+    StaticJsonDocument<4096> doc;
+    deserializeJson(doc, file);
+    for (float temp : doc["temperature"].as<JsonArray>()) temperatureDataHourly.push_back(temp);
+    for (float hum : doc["humidity"].as<JsonArray>()) humidityDataHourly.push_back(hum);
+    for (String ts : doc["timestamps"].as<JsonArray>()) timestampsHourly.push_back(ts);
+    file.close();
+  }
+  Serial.printf("Loaded %d hourly data points\n", temperatureDataHourly.size());
+
+  // Load 6-hour data
+  file = SPIFFS.open("/data_6hour.json", FILE_READ);
+  if (file) {
+    StaticJsonDocument<4096> doc;
+    deserializeJson(doc, file);
+    for (float temp : doc["temperature"].as<JsonArray>()) temperatureData6Hour.push_back(temp);
+    for (float hum : doc["humidity"].as<JsonArray>()) humidityData6Hour.push_back(hum);
+    for (String ts : doc["timestamps"].as<JsonArray>()) timestamps6Hour.push_back(ts);
+    file.close();
+  }
+  Serial.printf("Loaded %d 6-hour data points\n", temperatureData6Hour.size());
+}
+
+void rotateAndSave5MinuteData() {
+  // Rotate out old data if we exceed the maximum points
+  while (temperatureData5Min.size() > MAX_5MIN_POINTS) {
+    temperatureData5Min.erase(temperatureData5Min.begin());
+    humidityData5Min.erase(humidityData5Min.begin());
+    timestamps5Min.erase(timestamps5Min.begin());
+  }
+
+  // Save the latest 5-minute data to SPIFFS
+  StaticJsonDocument<8192> doc;
+  JsonArray tempArray = doc.createNestedArray("temperature");
+  JsonArray humArray = doc.createNestedArray("humidity");
   JsonArray timeArray = doc.createNestedArray("timestamps");
 
-  // Populate JSON arrays with data
-  for (float temp : temperatureData) tempArray.add(temp);
-  for (float hum : humidityData) humArray.add(hum);
-  for (String ts : timestamps) timeArray.add(ts);
+  for (float temp : temperatureData5Min) tempArray.add(temp);
+  for (float hum : humidityData5Min) humArray.add(hum);
+  for (String ts : timestamps5Min) timeArray.add(ts);
 
-  // Use safeWriteToFile to write the data to "/data.json"
-  safeWriteToFile("/data.json", doc);
+  safeWriteToFile("/data_5min.json", doc);
 }
 
-void load5MinuteData() {
-  if (!SPIFFS.exists("/data.json")) {
-    Serial.println("No data.json file found, starting with empty dataset.");
-    return;
+void rotateAndSaveHourlyData() {
+  // Rotate out old data if we exceed the maximum points
+  while (temperatureDataHourly.size() > MAX_HOURLY_POINTS) {
+    temperatureDataHourly.erase(temperatureDataHourly.begin());
+    humidityDataHourly.erase(humidityDataHourly.begin());
+    timestampsHourly.erase(timestampsHourly.begin());
   }
 
-  File file = SPIFFS.open("/data.json", FILE_READ);
-  if (!file) {
-    Serial.println("Failed to open data.json for reading");
-    return;
-  }
-
+  // Save the latest hourly data to SPIFFS
   StaticJsonDocument<4096> doc;
-  DeserializationError error = deserializeJson(doc, file);
-  file.close();
+  JsonArray tempArray = doc.createNestedArray("temperature");
+  JsonArray humArray = doc.createNestedArray("humidity");
+  JsonArray timeArray = doc.createNestedArray("timestamps");
 
-  if (error) {
-    Serial.println("Failed to parse JSON data.");
-    return;
-  }
+  for (float temp : temperatureDataHourly) tempArray.add(temp);
+  for (float hum : humidityDataHourly) humArray.add(hum);
+  for (String ts : timestampsHourly) timeArray.add(ts);
 
-  // Load data from JSON arrays
-  for (float temp : doc["temperatureData"].as<JsonArray>()) temperatureData.push_back(temp);
-  for (float hum : doc["humidityData"].as<JsonArray>()) humidityData.push_back(hum);
-  for (String ts : doc["timestamps"].as<JsonArray>()) timestamps.push_back(ts);
-
-  Serial.println("Loaded historical data from SPIFFS.");
+  safeWriteToFile("/data_hourly.json", doc);
 }
 
-void safeWriteToFile(const char* filePath, JsonDocument& doc) {
+void rotateAndSave6HourData() {
+  // Rotate out old data if we exceed the maximum points
+  while (temperatureData6Hour.size() > MAX_6HOUR_POINTS) {
+    temperatureData6Hour.erase(temperatureData6Hour.begin());
+    humidityData6Hour.erase(humidityData6Hour.begin());
+    timestamps6Hour.erase(timestamps6Hour.begin());
+  }
+
+  // Save the latest 6-hour data to SPIFFS
+  StaticJsonDocument<4096> doc;
+  JsonArray tempArray = doc.createNestedArray("temperature");
+  JsonArray humArray = doc.createNestedArray("humidity");
+  JsonArray timeArray = doc.createNestedArray("timestamps");
+
+  for (float temp : temperatureData6Hour) tempArray.add(temp);
+  for (float hum : humidityData6Hour) humArray.add(hum);
+  for (String ts : timestamps6Hour) timeArray.add(ts);
+
+  safeWriteToFile("/data_6hour.json", doc);
+}
+
+// Aggregate 5-minute data into an hourly data point
+void aggregateToHourlyData() {
+  if (temperatureData5Min.size() >= 12) {
+    float avgTemp = std::accumulate(temperatureData5Min.end() - 12, temperatureData5Min.end(), 0.0) / 12;
+    float avgHum = std::accumulate(humidityData5Min.end() - 12, humidityData5Min.end(), 0.0) / 12;
+    temperatureDataHourly.push_back(avgTemp);
+    humidityDataHourly.push_back(avgHum);
+    timestampsHourly.push_back(getCurrentTimestamp());
+
+    // Rotate and save hourly data to SPIFFS
+    rotateAndSaveHourlyData();
+  }
+}
+
+// Aggregate hourly data into a 6-hour data point
+void aggregateTo6HourData() {
+  if (temperatureDataHourly.size() >= 6) {
+    float avgTemp = std::accumulate(temperatureDataHourly.end() - 6, temperatureDataHourly.end(), 0.0) / 6;
+    float avgHum = std::accumulate(humidityDataHourly.end() - 6, humidityDataHourly.end(), 0.0) / 6;
+    temperatureData6Hour.push_back(avgTemp);
+    humidityData6Hour.push_back(avgHum);
+    timestamps6Hour.push_back(getCurrentTimestamp());
+
+    // Rotate and save 6-hour data to SPIFFS
+    rotateAndSave6HourData();
+  }
+}
+
+void safeWriteToFile(const char* filePath, const JsonDocument& doc) {
   // Generate a unique temporary file name using the current time
   String tempFileName = "/temp_" + String(millis()) + ".json";
 
@@ -90,16 +202,6 @@ void safeWriteToFile(const char* filePath, JsonDocument& doc) {
   Serial.println("Data safely written to file");
 }
 
-
-
-String getCurrentTimestamp() {
-  time_t now = time(nullptr);
-  struct tm* timeInfo = localtime(&now);
-  char buffer[20];
-  strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", timeInfo);
-  return String(buffer);
-}
-
 // Helper function to filter data with a dynamic limit
 template <typename T>
 void filterData(const std::vector<T>& source, std::vector<T>& destination, int maxPoints) {
@@ -109,35 +211,47 @@ void filterData(const std::vector<T>& source, std::vector<T>& destination, int m
     }
 }
 
+/*
 // Filter last 24 hours (288 data points) for "day" data
 void filterDataForDay(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps) {
     int dataPoints = 288; // 24 hours * 12 (5-minute intervals in each hour)
     filterData(temperatureData, tempData, dataPoints);
     filterData(humidityData, humData, dataPoints);
     filterData(timestamps, timestamps, dataPoints);
+} */
+
+void filterDataForDay(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timeData) {
+    size_t start = temperatureData5Min.size() > 288 ? temperatureData5Min.size() - 288 : 0; // 288 points = 24 hours * 12 points/hour
+    for (size_t i = start; i < temperatureData5Min.size(); ++i) {
+        tempData.push_back(temperatureData5Min[i]);
+        humData.push_back(humidityData5Min[i]);
+        timeData.push_back(timestamps5Min[i]);
+    }
 }
 
-// Filter last 7 days (2016 data points) for "week" data
-void filterDataForWeek(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps) {
-    int dataPoints = 2016; // 7 days * 24 hours * 12 intervals per hour
-    filterData(temperatureData, tempData, dataPoints);
-    filterData(humidityData, humData, dataPoints);
-    filterData(timestamps, timestamps, dataPoints);
+void filterDataForWeek(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timeData) {
+    size_t start = temperatureDataHourly.size() > 168 ? temperatureDataHourly.size() - 168 : 0; // 168 points = 7 days * 24 points/day
+    for (size_t i = start; i < temperatureDataHourly.size(); ++i) {
+        tempData.push_back(temperatureDataHourly[i]);
+        humData.push_back(humidityDataHourly[i]);
+        timeData.push_back(timestampsHourly[i]);
+    }
 }
 
-// Filter last 30 days (8640 data points) for "month" data
-void filterDataForMonth(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps) {
-    int dataPoints = 8640; // 30 days * 24 hours * 12 intervals per hour
-    filterData(temperatureData, tempData, dataPoints);
-    filterData(humidityData, humData, dataPoints);
-    filterData(timestamps, timestamps, dataPoints);
+void filterDataForMonth(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timeData) {
+    size_t start = temperatureDataHourly.size() > 720 ? temperatureDataHourly.size() - 720 : 0; // 720 points = 30 days * 24 points/day
+    for (size_t i = start; i < temperatureDataHourly.size(); ++i) {
+        tempData.push_back(temperatureDataHourly[i]);
+        humData.push_back(humidityDataHourly[i]);
+        timeData.push_back(timestampsHourly[i]);
+    }
 }
 
-// Filter last 365 days (105120 data points) for "year" data
-void filterDataForYear(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps) {
-    int dataPoints = 105120; // 365 days * 24 hours * 12 intervals per hour
-    filterData(temperatureData, tempData, dataPoints);
-    filterData(humidityData, humData, dataPoints);
-    filterData(timestamps, timestamps, dataPoints);
+void filterDataForYear(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timeData) {
+    size_t start = temperatureData6Hour.size() > 1460 ? temperatureData6Hour.size() - 1460 : 0; // 1460 points = 365 days * 4 points/day
+    for (size_t i = start; i < temperatureData6Hour.size(); ++i) {
+        tempData.push_back(temperatureData6Hour[i]);
+        humData.push_back(humidityData6Hour[i]);
+        timeData.push_back(timestamps6Hour[i]);
+    }
 }
-
