@@ -18,27 +18,21 @@ std::vector<ActivityLogEntry> activityLog = {
   {"11:10", "Turn AC Off", "Temperature stable"},
 };
 
+// Function to safely save the 5-minute data to SPIFFS
 void save5MinuteData() {
+  // Create a JSON document
   StaticJsonDocument<4096> doc;
   JsonArray tempArray = doc.createNestedArray("temperatureData");
   JsonArray humArray = doc.createNestedArray("humidityData");
   JsonArray timeArray = doc.createNestedArray("timestamps");
 
-  // Add data to JSON arrays
+  // Populate JSON arrays with data
   for (float temp : temperatureData) tempArray.add(temp);
   for (float hum : humidityData) humArray.add(hum);
   for (String ts : timestamps) timeArray.add(ts);
 
-  // Serialize JSON document to string
-  File file = SPIFFS.open("/data.json", FILE_WRITE);
-  if (!file) {
-    Serial.println("Failed to open data.json for writing");
-    return;
-  }
-  if (serializeJson(doc, file) == 0) {
-    Serial.println("Failed to write data to file");
-  }
-  file.close();
+  // Use safeWriteToFile to write the data to "/data.json"
+  safeWriteToFile("/data.json", doc);
 }
 
 void load5MinuteData() {
@@ -69,6 +63,34 @@ void load5MinuteData() {
 
   Serial.println("Loaded historical data from SPIFFS.");
 }
+
+void safeWriteToFile(const char* filePath, JsonDocument& doc) {
+  // Generate a unique temporary file name using the current time
+  String tempFileName = "/temp_" + String(millis()) + ".json";
+
+  // Open the temporary file for writing
+  File tempFile = SPIFFS.open(tempFileName.c_str(), FILE_WRITE);
+  if (!tempFile) {
+    Serial.println("Failed to open temporary file for writing");
+    return;
+  }
+
+  // Serialize JSON document to the temporary file
+  if (serializeJson(doc, tempFile) == 0) {
+    Serial.println("Failed to write data to temporary file");
+    tempFile.close();
+    SPIFFS.remove(tempFileName);  // Clean up temporary file on failure
+    return;
+  }
+  tempFile.close();
+
+  // Safely rename the temporary file to the final file name
+  SPIFFS.remove(filePath);                    // Remove the old file if it exists
+  SPIFFS.rename(tempFileName.c_str(), filePath);  // Rename temporary file to final file
+  Serial.println("Data safely written to file");
+}
+
+
 
 String getCurrentTimestamp() {
   time_t now = time(nullptr);
