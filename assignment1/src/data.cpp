@@ -353,3 +353,20 @@ unsigned long calculateNextInterval(uint32_t lastTimestamp, unsigned long interv
     }
     return 0; // Ready for aggregation immediately if timeSinceLast >= interval
 }
+
+String formatTimestamp(uint32_t epoch, const String& timezone) {
+    // Convert the epoch to time structure
+    time_t rawTime = epoch;
+    struct tm *timeInfo = localtime(&rawTime);
+
+    // Format the time as a string
+    char buffer[25];  // Enough space for "YYYY-MM-DD HH:MM:SS ±HH:MM"
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeInfo);
+
+    // Append timezone
+    String formattedTime(buffer);
+    formattedTime += " " + timezone;
+
+    return formattedTime;
+}
+

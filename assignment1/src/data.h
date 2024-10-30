@@ -53,6 +53,7 @@ String getCurrentTimestamp();
 uint32_t getCurrentEpoch();
 uint32_t calculateCRC32(const uint8_t* data, size_t length);
 unsigned long calculateNextInterval(uint32_t lastTimestamp, unsigned long interval);
+String formatTimestamp(uint32_t epoch, const String& timezone = "UTC");
 
 struct ActivityLogEntry {
   String timestamp;

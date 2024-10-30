@@ -252,7 +252,7 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
     response->print("],\"timestamps\":[");
 
     for (size_t i = 0; i < selectedData->size(); ++i) {
-        response->print(selectedData->at(i).timestamp);
+        response->print("\"" + formatTimestamp(selectedData->at(i).timestamp, "+00:00") + "\"");  // UTC offset as an example
         if (i < selectedData->size() - 1) {
             response->print(",");
         }
