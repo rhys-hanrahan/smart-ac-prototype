@@ -33,4 +33,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (navLinks[path]) {
     navLinks[path].classList.add("active");
   }
+
+  document.getElementById('logoutButton').addEventListener('click', () => {
+    localStorage.removeItem('jwtToken');
+    window.location.href = '/login';
+  });
 });

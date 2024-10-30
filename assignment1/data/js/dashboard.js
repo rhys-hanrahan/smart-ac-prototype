@@ -6,20 +6,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.href = '/login';
     return;
   }
-  
-  // Fetch and update chart data and activity log periodically
-  await fetchDataAndUpdate(token);
-  setInterval(() => fetchDataAndUpdate(token), 20000);
 
-  // Logout button handler
-  document.getElementById('logoutButton').addEventListener('click', () => {
+  // Token check
+  const response = await fetch('/api/auth-check', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) {
     localStorage.removeItem('jwtToken');
     window.location.href = '/login';
-  });
+    return;
+  }
+
+  // Initialize chart for the 'Day' data by default
+  await fetchDataAndUpdate(token, 'day');
+  setInterval(() => fetchDataAndUpdate(token, 'day'), 20000);
+
+  // Set up event listeners for each tab
+  document.getElementById('day-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'day'));
+  document.getElementById('week-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'week'));
+  document.getElementById('month-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'month'));
+  document.getElementById('year-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'year'));
 });
 
-async function fetchDataAndUpdate(token) {
-  const response = await fetch('/api/data', {
+// Function to fetch data based on the selected time period and update the chart
+async function fetchDataAndUpdate(token, period) {
+  const response = await fetch(`/api/data?period=${period}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
@@ -70,16 +81,8 @@ function setupChart(temperatureData, humidityData, timestamps) {
     options: {
       maintainAspectRatio: true,
       plugins: {
-        legend: {
-          position: 'top',
-          labels: {
-            font: { size: 14 }
-          }
-        },
-        tooltip: {
-          mode: 'index',
-          intersect: false
-        }
+        legend: { position: 'top' },
+        tooltip: { mode: 'index', intersect: false }
       },
       scales: {
         y: {
@@ -91,9 +94,6 @@ function setupChart(temperatureData, humidityData, timestamps) {
           type: 'linear',
           position: 'right',
           title: { display: true, text: 'Humidity (%)' }
-        },
-        x: {
-          ticks: { autoSkip: true, maxTicksLimit: 10 }
         }
       }
     }
