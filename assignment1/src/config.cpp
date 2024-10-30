@@ -22,11 +22,6 @@ IPAddress ap_gateway(172, 23, 23, 1);
 IPAddress ap_subnet(255, 255, 255, 0);
 
 void loadConfig() {
-  if (!SPIFFS.begin()) {
-    Serial.println("Failed to mount file system");
-    return;
-  }
-  Serial.println("SPIFFS is mounted");
   
   File configFile = SPIFFS.open("/config.json", "r");
   if (!configFile) {

@@ -17,4 +17,14 @@ struct ActivityLogEntry {
 // Declare the activity log vector
 extern std::vector<ActivityLogEntry> activityLog;
 
+void filterDataForDay(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps);
+void filterDataForWeek(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps);
+void filterDataForMonth(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps);
+void filterDataForYear(std::vector<float>& tempData, std::vector<float>& humData, std::vector<String>& timestamps);
+
+void safeWriteToFile(const char* filePath, const JsonDocument& doc);
+void load5MinuteData();
+void save5MinuteData();
+String getCurrentTimestamp();
+
 #endif

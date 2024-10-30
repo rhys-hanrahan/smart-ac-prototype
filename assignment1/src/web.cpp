@@ -206,8 +206,36 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
       return;
     }
 
+    // Retrieve the "period" query parameter to determine the requested time range
+    String period = "day"; // Default to "day" if no period is specified
+    if (request->hasParam("period")) {
+        period = request->getParam("period")->value();
+    }
+    Serial.printf("[HTTP] GET /api/data - Requested period: %s\n", period.c_str());
+
+    // Prepare the data based on the requested period
+    std::vector<float> filteredTemperatureData;
+    std::vector<float> filteredHumidityData;
+    std::vector<String> filteredTimestamps;
+    std::vector<ActivityLogEntry> filteredActivityLog;
+
+    // Filter data based on the requested period
+    if (period == "day") {
+        // Populate filtered data arrays with "day" data (last 24 hours)
+        filterDataForDay(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+    } else if (period == "week") {
+        filterDataForWeek(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+    } else if (period == "month") {
+        filterDataForMonth(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+    } else if (period == "year") {
+        filterDataForYear(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+    } else {
+        request->send(400, "application/json", "{\"error\":\"Invalid period parameter\"}");
+        return;
+    }
+
     // Create JSON document to hold the response
-    StaticJsonDocument<1024> jsonDoc;
+    StaticJsonDocument<4096> jsonDoc;
 
     // Populate temperature and humidity data
     JsonArray temperatureArray = jsonDoc.createNestedArray("temperature");

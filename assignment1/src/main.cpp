@@ -17,6 +17,7 @@
 #include <web.h>
 #include <data.h>
 #include <config.h>
+#include <numeric>
 
 #define LEDPIN 2
 #define IRTXPIN 5 //IR Transmitter pin
@@ -25,21 +26,18 @@
 #define DHTTYPE DHT11   // DHT 11
 DHT dht(DHTPIN, DHTTYPE);
 
-//Store temp reading
-float temp;
-float hum;
-
-// Timer variables
-unsigned long lastTime = 0;
-unsigned long timerDelay = 2000;
-
-//Webserver state
-const char* PARAM_INPUT_1 = "state";
-
 //Setup Daikin AC
 //https://github.com/crankyoldgit/IRremoteESP8266/blob/master/examples/TurnOnDaikinAC/TurnOnDaikinAC.ino
 const uint16_t kIrLed = IRTXPIN;  // ESP8266 GPIO pin to use. Recommended: 4 (D2). NOTE: ESP32 doesnt use the same pinout.
 IRDaikinESP ac(kIrLed);  // Set the GPIO to be used to sending the message
+
+// Store individual 15-second readings temporarily
+std::vector<float> tempBuffer;
+std::vector<float> humBuffer;
+unsigned long lastCollectionTime = 0;
+unsigned long lastAverageTime = 0;
+unsigned long collectionInterval = 15000;    // 15 seconds
+unsigned long averageInterval = 300000;      // 5 minutes
 
 void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
   switch(event) {
@@ -67,9 +65,24 @@ void setupMulticastDNS() {
   Serial.println("mDNS responder started for smartac.local");
 }
 
+
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting SmartAC Remote");
+
+  if (!SPIFFS.begin()) {
+    Serial.println("Failed to mount file system");
+    return;
+  }
+  Serial.println("SPIFFS is mounted");
+
+  Serial.println("Loading config...");
+  loadConfig();
+  Serial.println("Config loaded");
+  Serial.println("Loading historical data...");
+  load5MinuteData();
+
   Serial.print("Setting up AP: ");
   if (!WiFi.softAP(local_wifi_ssid.c_str(), local_wifi_password.c_str())) {
     Serial.println("Failed to set up AP");
@@ -79,9 +92,8 @@ void setup() {
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(IP);
-  Serial.println("Loading config...");
-  loadConfig();
-  // Setup DHH
+
+  // Setup DHT
   dht.begin();
   Serial.println("Started DHT");
 
@@ -108,23 +120,50 @@ void setup() {
 
 void loop() {
 
-  if ((millis() - lastTime) > timerDelay) {
-    // Read temperature as Celsius (the default)
-    digitalWrite (LEDPIN, HIGH);
-    temp = dht.readTemperature();
-    Serial.print("Temperature Celsius: ");
-    Serial.print(temp);
-    Serial.print(" ºC");
+  if ((millis() - lastCollectionTime) > collectionInterval) {
+    lastCollectionTime = millis();
 
-    // Read humidity
-    hum = dht.readHumidity();
+    // Read and store data every 15 seconds
+    float temp = dht.readTemperature();
+    float hum = dht.readHumidity();
+    if (!isnan(temp) && !isnan(hum)) {
+      tempBuffer.push_back(temp);
+      humBuffer.push_back(hum);
+      Serial.printf("Collected data - Temp: %.2f, Humidity: %.2f\n", temp, hum);
+    } else {
+      Serial.println("Failed to read from DHT sensor.");
+    }
+  }
 
-    Serial.print(" - Humidity: ");
-    Serial.print(hum);
-    Serial.println(" %");
-    
-    lastTime = millis();
+  if ((millis() - lastAverageTime) > averageInterval) {
+    lastAverageTime = millis();
 
+    // Calculate the average for the last 5 minutes if there is data
+    if (!tempBuffer.empty() && !humBuffer.empty()) {
+      float tempSum = std::accumulate(tempBuffer.begin(), tempBuffer.end(), 0.0);
+      float humSum = std::accumulate(humBuffer.begin(), humBuffer.end(), 0.0);
+      float avgTemp = tempSum / tempBuffer.size();
+      float avgHum = humSum / humBuffer.size();
+
+      // Store the averaged data in the 5-minute data vectors
+      temperatureData.push_back(avgTemp);
+      humidityData.push_back(avgHum);
+      timestamps.push_back(getCurrentTimestamp());
+
+      Serial.printf("5-Minute Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
+
+      // Save to SPIFFS
+      save5MinuteData();
+
+      // Clear buffers for the next 5-minute period
+      tempBuffer.clear();
+      humBuffer.clear();
+    } else {
+      Serial.println("Insufficient data for averaging.");
+    }
+  }
+
+/*
     ac.on();
     ac.setFan(1);
     ac.setMode(kDaikinCool);
@@ -140,6 +179,6 @@ void loop() {
     ac.send();
 //#endif  // SEND_DAIKIN
 
-    digitalWrite (LEDPIN, LOW);
-  }
+    digitalWrite (LEDPIN, LOW); */
+
 }
