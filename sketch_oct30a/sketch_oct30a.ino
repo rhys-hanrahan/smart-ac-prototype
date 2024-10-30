@@ -8,6 +8,9 @@
 #include <FS.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
+#include <AsyncTCP.h> // https://randomnerdtutorials.com/esp32-esp8266-web-server-http-authentication/
+#include <base64.h>
+#include <CustomJWT.h>
 
 struct Config {
   String wifi_ssid;
@@ -33,6 +36,9 @@ float hum;
 unsigned long lastTime = 0;
 unsigned long timerDelay = 2000;
 
+//Webserver state
+const char* PARAM_INPUT_1 = "state";
+
 //Setup Daikin AC
 //https://github.com/crankyoldgit/IRremoteESP8266/blob/master/examples/TurnOnDaikinAC/TurnOnDaikinAC.ino
 const uint16_t kIrLed = IRTXPIN;  // ESP8266 GPIO pin to use. Recommended: 4 (D2). NOTE: ESP32 doesnt use the same pinout.
@@ -40,6 +46,43 @@ IRDaikinESP ac(kIrLed);  // Set the GPIO to be used to sending the message
 
 //Webserver
 AsyncWebServer server(80); // Web server
+char jwtSecret[] = "(M279FET1oJYy4r1|5U1O'hg)bof)I1%.Fv3:\#]Q>7FzZ_9(ba/2G5OC'H?(Q"; // Secret key for signing JWT
+CustomJWT jwt(jwtSecret, 256);
+
+String createJWTToken(const String& username) {
+  // Define the payload with a JSON structure
+  String payload = "{\"username\":\"" + username + "\"}";
+
+  // Allocate memory for JWT generation
+  jwt.allocateJWTMemory();
+
+  // Encode the JWT with the payload
+  if (jwt.encodeJWT((char*)payload.c_str())) {
+    // Return the final output JWT as a String
+    String token = jwt.out;
+    jwt.clear(); // Clear the memory after encoding
+    return token;
+  } else {
+    Serial.println("Error encoding JWT");
+    jwt.clear(); // Clear memory if encoding failed
+    return "";
+  }
+}
+
+// Function to validate the JWT token
+bool isValidJWTToken(const String& token) {
+  // Allocate memory for JWT decoding
+  jwt.allocateJWTMemory();
+
+  // Decode and verify the JWT
+  int result = jwt.decodeJWT((char*)token.c_str());
+
+  jwt.clear(); // Clear the memory after decoding
+
+  // Check result; 0 means valid, non-zero indicates an error
+  return (result == 0);
+}
+
 
 void loadConfig() {
   if (!SPIFFS.begin()) {
@@ -118,6 +161,7 @@ void saveConfig() {
 }
 
 void setupWebServer() {
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "Welcome to Smart AC Control!");
   });
@@ -129,6 +173,44 @@ void setupWebServer() {
     serializeJson(doc, output);
     request->send(200, "application/json", output);
   });
+
+  server.on("/login", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (request->hasParam("username", true) && request->hasParam("password", true)) {
+      String username = request->getParam("username", true)->value();
+      String password = request->getParam("password", true)->value();
+
+      if (username == config.web_username && password == config.web_userpass) {
+        // Generate JWT if credentials are valid
+        String token = createJWTToken(username);
+        if (!token.isEmpty()) {
+          String response = "{\"token\":\"" + token + "\"}";
+          request->send(200, "application/json", response);
+        } else {
+          request->send(500, "application/json", "{\"error\":\"Failed to generate token\"}");
+        }
+      } else {
+        request->send(401, "application/json", "{\"error\":\"Invalid credentials\"}");
+      }
+    } else {
+      request->send(400, "application/json", "{\"error\":\"Username and password required\"}");
+    }
+  });
+
+  // Protected route that requires a valid JWT token
+  server.on("/protected", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (request->hasHeader("Authorization")) {
+      String authHeader = request->header("Authorization");
+      if (authHeader.startsWith("Bearer ")) {
+        String token = authHeader.substring(7);
+        if (isValidJWTToken(token)) {
+          request->send(200, "application/json", "{\"message\":\"Access granted to protected route!\"}");
+          return;
+        }
+      }
+    }
+    request->send(401, "application/json", "{\"error\":\"Invalid or missing token\"}");
+  });
+
   
   // More endpoints for setting temperature schedules or changing config
   server.begin();
@@ -144,6 +226,7 @@ void setup() {
   pinMode (LEDPIN, OUTPUT);
   ac.begin();
 
+  //jwt.allocateJWTMemory();
   setupWebServer(); //Setup HTTP Routing
 
   Serial.print("Connecting to SSID: ");
