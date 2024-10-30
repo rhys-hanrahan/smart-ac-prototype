@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await fetchDataAndUpdate(token);
 
   // Polling every 30 seconds to fetch and update data
-  setInterval(() => fetchDataAndUpdate(token), 30000);
+  setInterval(() => fetchDataAndUpdate(token), 20000);
 
   // Logout button handler
   document.getElementById('logoutButton').addEventListener('click', () => {
