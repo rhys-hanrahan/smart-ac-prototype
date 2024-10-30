@@ -1,3 +1,5 @@
+const token = localStorage.getItem('jwtToken');
+
 document.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem('jwtToken');
   if (!token) {

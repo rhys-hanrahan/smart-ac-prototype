@@ -12,6 +12,7 @@
 #include <base64.h>
 #include <CustomJWT.h>
 #include <ESPmDNS.h>
+#include <vector>
 
 struct Config {
   String wifi_ssid;
@@ -20,6 +21,24 @@ struct Config {
   String web_userpass; //Web password
   float tempSchedule[7][24]; // Store temperature settings by day and hour
 } config;
+
+
+// Simulated data storage for temperature, humidity, timestamps, and activity log
+std::vector<float> temperatureData = {22.5, 23.0, 22.8, 23.1};  // Example data
+std::vector<float> humidityData = {55.0, 56.2, 54.8, 55.5};      // Example data
+std::vector<String> timestamps = {"10:00", "10:30", "11:00", "11:30"};  // Example timestamps
+
+struct ActivityLogEntry {
+  String timestamp;
+  String action;
+  String details;
+};
+
+std::vector<ActivityLogEntry> activityLog = {
+  {"10:05", "Turn AC On", "Temperature: 22.5°C"},
+  {"10:35", "Adjust Temp Up", "New Temperature: 23.0°C"},
+  {"11:10", "Turn AC Off", "Temperature stable"},
+};
 
 
 #define LEDPIN 2
@@ -188,7 +207,38 @@ void setupWebServer() {
     request->redirect("/login");
   });
 
-  server.serveStatic("/dashboard", SPIFFS, "/dashboard.html");
+  server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Serial.println("[HTTP] GET /dashboard");
+
+    /* I don't think I can protect this route with JWT token as the client must send the token in the header
+
+    // Check if the Authorization header is present
+    if (!request->hasHeader("Authorization")) {
+      Serial.println("[HTTP] GET /dashboard - No Authorization header");
+      request->redirect("/login");  // Redirect to /login if no Authorization header
+      return;
+    }
+
+    // Get the Authorization header and verify the token format
+    String authHeader = request->header("Authorization");
+    if (!authHeader.startsWith("Bearer ")) {
+      Serial.println("[HTTP] GET /dashboard - Invalid token format");
+      request->redirect("/login");  // Redirect if the token format is incorrect
+      return;
+    }
+
+    // Extract and validate the token
+    String token = authHeader.substring(7);
+    if (!isValidJWTToken(token)) {
+      Serial.println("[HTTP] GET /dashboard - Invalid token");
+      request->redirect("/login");  // Redirect if the token is invalid
+      return;
+    } */
+
+    // If token is valid, serve the dashboard page
+    request->send(SPIFFS, "/dashboard.html", "text/html");
+  });
+
   server.on("/dashboard.html", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->redirect("/dashboard");
   });
@@ -218,6 +268,7 @@ void setupWebServer() {
         // Generate JWT if credentials are valid
         String token = createJWTToken(username);
         if (!token.isEmpty()) {
+          Serial.println("[HTTP] POST /login - Login successful");
           String response = "{\"token\":\"" + token + "\"}";
           request->send(200, "application/json", response);
         } else {
@@ -245,6 +296,82 @@ void setupWebServer() {
     }
     request->send(401, "application/json", "{\"error\":\"Invalid or missing token\"}");
   });
+
+server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
+  if (!request->hasHeader("Authorization")) {
+    request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+    return;
+  }
+  String authHeader = request->header("Authorization");
+  if (!authHeader.startsWith("Bearer ") || !isValidJWTToken(authHeader.substring(7))) {
+    request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+    return;
+  }
+  request->send(200, "application/json", "{\"message\":\"Authorized\"}");
+});
+
+  // API endpoint to serve temperature, humidity, timestamps, and activity log data
+  server.on("/api/data", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Serial.println("[HTTP] GET /api/data");
+    // Check if the Authorization header is present
+    if (!request->hasHeader("Authorization")) {
+      Serial.println("[HTTP] GET /api/data - No Authorization header");
+      request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+      return;
+    }
+
+    // Get the Authorization header and verify the token format
+    String authHeader = request->header("Authorization");
+    if (!authHeader.startsWith("Bearer ")) {
+      Serial.println("[HTTP] GET /api/data - Invalid token format");
+      request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+      return;
+    }
+
+    // Extract and validate the token
+    String token = authHeader.substring(7);
+    if (!isValidJWTToken(token)) {
+      Serial.println("[HTTP] GET /api/data - Invalid token");
+      request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+      return;
+    }
+
+    // Create JSON document to hold the response
+    StaticJsonDocument<1024> jsonDoc;
+
+    // Populate temperature and humidity data
+    JsonArray temperatureArray = jsonDoc.createNestedArray("temperature");
+    for (float temp : temperatureData) {
+      temperatureArray.add(temp);
+    }
+
+    JsonArray humidityArray = jsonDoc.createNestedArray("humidity");
+    for (float humidity : humidityData) {
+      humidityArray.add(humidity);
+    }
+
+    JsonArray timestampArray = jsonDoc.createNestedArray("timestamps");
+    for (String time : timestamps) {
+      timestampArray.add(time);
+    }
+
+    // Populate activity log
+    JsonArray activityLogArray = jsonDoc.createNestedArray("activityLog");
+    for (const auto& log : activityLog) {
+      JsonObject logEntry = activityLogArray.createNestedObject();
+      logEntry["timestamp"] = log.timestamp;
+      logEntry["action"] = log.action;
+      logEntry["details"] = log.details;
+    }
+
+    jsonDoc["message"] = "Thanks for using SmartAC Remote!";
+
+    // Serialize JSON document to string and send it in the response
+    String jsonResponse;
+    serializeJson(jsonDoc, jsonResponse);
+    request->send(200, "application/json", jsonResponse);
+  });
+
 
   server.onNotFound([](AsyncWebServerRequest *request){
     request->send(404, "text/plain", "404: Not Found");
