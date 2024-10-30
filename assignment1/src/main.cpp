@@ -44,9 +44,18 @@ const char* PARAM_INPUT_1 = "state";
 const uint16_t kIrLed = IRTXPIN;  // ESP8266 GPIO pin to use. Recommended: 4 (D2). NOTE: ESP32 doesnt use the same pinout.
 IRDaikinESP ac(kIrLed);  // Set the GPIO to be used to sending the message
 
+//Local WIFI Server
+String ssid = "SmartAC Remote";
+String password = "smart123";
+IPAddress ap_local_IP(172, 23, 23, 1);      // Set your ESP32 AP IP
+IPAddress ap_gateway(172, 23, 23, 1);
+IPAddress ap_subnet(255, 255, 255, 0);
+
+
+
 //Webserver
 AsyncWebServer server(80); // Web server
-char jwtSecret[] = "(M279FET1oJYy4r1|5U1O'hg)bof)I1%.Fv3:\#]Q>7FzZ_9(ba/2G5OC'H?(Q"; // Secret key for signing JWT
+char jwtSecret[] = "(M279FET1oJYy4r1|5U1O'hg)bof)I1.Fv3:#]Q>7FzZ_9(ba/2G5OC'H?(Q"; // Secret key for signing JWT
 CustomJWT jwt(jwtSecret, 256);
 
 String createJWTToken(const String& username) {
@@ -162,7 +171,7 @@ void saveConfig() {
 
 void setupWebServer() {
 
-  server.serveStatic("/", SPIFFS, "/index.html").setDefaultFile("index.html");
+  server.serveStatic("/", SPIFFS, "/").setDefaultFile("/index.html");
   server.serveStatic("/dashboard", SPIFFS, "/dashboard.html");
   server.serveStatic("/css", SPIFFS, "/css");
   server.serveStatic("/js", SPIFFS, "/js");
@@ -220,10 +229,36 @@ void setupWebServer() {
   server.begin();
 }
 
+void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+  switch(event) {
+    case SYSTEM_EVENT_AP_STACONNECTED:
+      Serial.print("Client connected, MAC: ");
+      Serial.println(WiFi.softAPgetStationNum());
+      break;
+    case SYSTEM_EVENT_AP_STADISCONNECTED:
+      Serial.print("Client disconnected, MAC: ");
+      Serial.println(WiFi.softAPgetStationNum());
+      break;
+    default:
+      break;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
+  Serial.println("Starting SmartAC Remote");
+  Serial.print("Setting up AP: ");
+  if (!WiFi.softAP(ssid.c_str(), password.c_str())) {
+    Serial.println("Failed to set up AP");
+  }
+  WiFi.softAPConfig(ap_local_IP, ap_gateway, ap_subnet);
+  WiFi.onEvent(WiFiEvent);
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+  Serial.println("Loading config...");
   loadConfig();
-  // Setup DHP
+  // Setup DHH
   dht.begin();
   Serial.print("Started DHT");
 
@@ -231,18 +266,22 @@ void setup() {
   ac.begin();
 
   //jwt.allocateJWTMemory();
+  Serial.println("Starting Web Server...");
   setupWebServer(); //Setup HTTP Routing
 
-  Serial.print("Connecting to SSID: ");
-  Serial.println(config.wifi_ssid);
-  WiFi.begin(config.wifi_ssid, config.wifi_password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
+  if (config.wifi_ssid.length() > 0) {
     Serial.println("Connecting to WiFi...");
+    WiFi.begin(config.wifi_ssid.c_str(), config.wifi_password.c_str());
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(1000);
+      Serial.println("Connecting to WiFi...");
+    }
+    Serial.println("Connected to WiFi");
   }
 }
 
 void loop() {
+
   if ((millis() - lastTime) > timerDelay) {
     // Read temperature as Celsius (the default)
     digitalWrite (LEDPIN, HIGH);
