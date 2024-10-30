@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+</head>
+<body>
+  <nav class="navbar navbar-light bg-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Protected Dashboard</a>
+      <button id="logoutButton" class="btn btn-outline-danger">Logout</button>
+    </div>
+  </nav>
+  
+  <div class="container mt-5">
+    <h2>Welcome to the Dashboard</h2>
+    <p>This is a protected area accessible only to authenticated users.</p>
+    <p id="message"></p>
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
