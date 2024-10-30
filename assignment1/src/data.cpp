@@ -45,44 +45,51 @@ String getCurrentTimestamp() {
 
 // Load data from SPIFFS on boot
 void loadData() {
-  Serial.println("Loading data from SPIFFS");
-  SPIFFS.begin(true);
+    Serial.println("Loading data from SPIFFS");
 
-  // Load 5-minute data
-  File file = SPIFFS.open("/data_5min.json", FILE_READ);
-  if (file) {
-    StaticJsonDocument<8192> doc;
-    deserializeJson(doc, file);
-    for (float temp : doc["temperature"].as<JsonArray>()) temperatureData5Min.push_back(temp);
-    for (float hum : doc["humidity"].as<JsonArray>()) humidityData5Min.push_back(hum);
-    for (String ts : doc["timestamps"].as<JsonArray>()) timestamps5Min.push_back(ts);
-    file.close();
-  }
-  Serial.printf("Loaded %d 5-minute data points\n", temperatureData5Min.size());
+    // Load 5-minute data
+    loadJsonData("/data_5min.json", temperatureData5Min, humidityData5Min, timestamps5Min, 8192, "5-minute");
 
-  // Load hourly data
-  file = SPIFFS.open("/data_hourly.json", FILE_READ);
-  if (file) {
-    StaticJsonDocument<4096> doc;
-    deserializeJson(doc, file);
-    for (float temp : doc["temperature"].as<JsonArray>()) temperatureDataHourly.push_back(temp);
-    for (float hum : doc["humidity"].as<JsonArray>()) humidityDataHourly.push_back(hum);
-    for (String ts : doc["timestamps"].as<JsonArray>()) timestampsHourly.push_back(ts);
-    file.close();
-  }
-  Serial.printf("Loaded %d hourly data points\n", temperatureDataHourly.size());
+    // Load hourly data
+    loadJsonData("/data_hourly.json", temperatureDataHourly, humidityDataHourly, timestampsHourly, 4096, "hourly");
 
-  // Load 6-hour data
-  file = SPIFFS.open("/data_6hour.json", FILE_READ);
-  if (file) {
-    StaticJsonDocument<4096> doc;
-    deserializeJson(doc, file);
-    for (float temp : doc["temperature"].as<JsonArray>()) temperatureData6Hour.push_back(temp);
-    for (float hum : doc["humidity"].as<JsonArray>()) humidityData6Hour.push_back(hum);
-    for (String ts : doc["timestamps"].as<JsonArray>()) timestamps6Hour.push_back(ts);
+    // Load 6-hour data
+    loadJsonData("/data_6hour.json", temperatureData6Hour, humidityData6Hour, timestamps6Hour, 6144, "6-hour");
+}
+
+// Helper function to load JSON data from a file on SPIFFS
+void loadJsonData(const char* path, std::vector<float>& temperatureData, std::vector<float>& humidityData,
+                  std::vector<String>& timestamps, size_t jsonCapacity, const char* label) {
+    File file = SPIFFS.open(path, FILE_READ);
+    if (!file) {
+        Serial.printf("Failed to open %s\n", path);
+        return;
+    }
+
+    // Use DynamicJsonDocument to allocate memory on the heap
+    DynamicJsonDocument* doc = new DynamicJsonDocument(jsonCapacity);
+    DeserializationError error = deserializeJson(*doc, file);
     file.close();
-  }
-  Serial.printf("Loaded %d 6-hour data points\n", temperatureData6Hour.size());
+
+    if (error) {
+        Serial.printf("Failed to deserialize %s data: %s\n", label, error.c_str());
+        delete doc; //Free up memory
+        return;
+    }
+
+    // Clear existing data to avoid appending duplicate entries
+    temperatureData.clear();
+    humidityData.clear();
+    timestamps.clear();
+
+    // Load data into vectors
+    for (float temp : (*doc)["temperature"].as<JsonArray>()) temperatureData.push_back(temp);
+    for (float hum : (*doc)["humidity"].as<JsonArray>()) humidityData.push_back(hum);
+    for (String ts : (*doc)["timestamps"].as<JsonArray>()) timestamps.push_back(ts);
+
+    Serial.printf("Loaded %d %s data points\n", temperatureData.size(), label);
+
+    delete doc; // Free up memory
 }
 
 void rotateAndSave5MinuteData() {
@@ -94,16 +101,18 @@ void rotateAndSave5MinuteData() {
   }
 
   // Save the latest 5-minute data to SPIFFS
-  StaticJsonDocument<8192> doc;
-  JsonArray tempArray = doc.createNestedArray("temperature");
-  JsonArray humArray = doc.createNestedArray("humidity");
-  JsonArray timeArray = doc.createNestedArray("timestamps");
+  // Allocate the DynamicJsonDocument on the heap
+  DynamicJsonDocument* doc = new DynamicJsonDocument(8192);  // Adjust capacity if needed
+  JsonArray tempArray = doc->createNestedArray("temperature");
+  JsonArray humArray = doc->createNestedArray("humidity");
+  JsonArray timeArray = doc->createNestedArray("timestamps");
 
   for (float temp : temperatureData5Min) tempArray.add(temp);
   for (float hum : humidityData5Min) humArray.add(hum);
   for (String ts : timestamps5Min) timeArray.add(ts);
 
-  safeWriteToFile("/data_5min.json", doc);
+  safeWriteToFile("/data_5min.json", *doc);
+  delete doc; // Free up memory
 }
 
 void rotateAndSaveHourlyData() {
@@ -115,16 +124,18 @@ void rotateAndSaveHourlyData() {
   }
 
   // Save the latest hourly data to SPIFFS
-  StaticJsonDocument<4096> doc;
-  JsonArray tempArray = doc.createNestedArray("temperature");
-  JsonArray humArray = doc.createNestedArray("humidity");
-  JsonArray timeArray = doc.createNestedArray("timestamps");
+  // Allocate the DynamicJsonDocument on the heap
+  DynamicJsonDocument* doc = new DynamicJsonDocument(4096);  // Adjust capacity if needed
+  JsonArray tempArray = doc->createNestedArray("temperature");
+  JsonArray humArray = doc->createNestedArray("humidity");
+  JsonArray timeArray = doc->createNestedArray("timestamps");
 
   for (float temp : temperatureDataHourly) tempArray.add(temp);
   for (float hum : humidityDataHourly) humArray.add(hum);
   for (String ts : timestampsHourly) timeArray.add(ts);
 
-  safeWriteToFile("/data_hourly.json", doc);
+  safeWriteToFile("/data_hourly.json", *doc);
+  delete doc; // Free up memory
 }
 
 void rotateAndSave6HourData() {
@@ -136,16 +147,18 @@ void rotateAndSave6HourData() {
   }
 
   // Save the latest 6-hour data to SPIFFS
-  StaticJsonDocument<4096> doc;
-  JsonArray tempArray = doc.createNestedArray("temperature");
-  JsonArray humArray = doc.createNestedArray("humidity");
-  JsonArray timeArray = doc.createNestedArray("timestamps");
+  // Allocate the DynamicJsonDocument on the heap
+  DynamicJsonDocument* doc = new DynamicJsonDocument(6144);  // Adjust capacity if needed
+  JsonArray tempArray = doc->createNestedArray("temperature");
+  JsonArray humArray = doc->createNestedArray("humidity");
+  JsonArray timeArray = doc->createNestedArray("timestamps");
 
   for (float temp : temperatureData6Hour) tempArray.add(temp);
   for (float hum : humidityData6Hour) humArray.add(hum);
   for (String ts : timestamps6Hour) timeArray.add(ts);
 
-  safeWriteToFile("/data_6hour.json", doc);
+  safeWriteToFile("/data_6hour.json", *doc);
+  delete doc; // Free up memory
 }
 
 // Aggregate 5-minute data into an hourly data point

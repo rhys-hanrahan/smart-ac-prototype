@@ -21,6 +21,8 @@ extern std::vector<String> timestamps6Hour;
 // Function declarations
 void safeWriteToFile(const char* filePath, const JsonDocument& doc);
 void loadData();
+void loadJsonData(const char* path, std::vector<float>& temperatureData, std::vector<float>& humidityData,
+                  std::vector<String>& timestamps, size_t jsonCapacity, const char* label);
 void rotateAndSave5MinuteData();
 void rotateAndSaveHourlyData();
 void rotateAndSave6HourData();
