@@ -220,6 +220,7 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
     std::vector<String> filteredTimestamps;
 
     // Filter data based on the requested period
+    /*
     if (period == "day") {
         filterDataForDay(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
     } else if (period == "week") {
@@ -231,7 +232,7 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
     } else {
         request->send(400, "application/json", "{\"error\":\"Invalid period parameter\"}");
         return;
-    }
+    } */
 
     // Create JSON document to hold the response
     StaticJsonDocument<4096> jsonDoc;

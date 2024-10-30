@@ -87,7 +87,20 @@ void setup() {
   loadConfig();
   Serial.println("Config loaded");
   Serial.println("Loading historical data...");
-  loadData();
+  loadHistoricalData();
+
+  // Check if we have any historical data and set last aggregation times
+  if (!temperatureData5Min.empty()) {
+      lastAverageTime = millis() - (millis() - calculateNextInterval(temperatureData5Min.back().timestamp, averageInterval));
+  }
+  if (!temperatureDataHourly.empty()) {
+      lastHourlyAggregation = millis() - (millis() - calculateNextInterval(temperatureDataHourly.back().timestamp, 3600000)); // 1 hour
+  }
+  if (!temperatureData6Hour.empty()) {
+      last6HourAggregation = millis() - (millis() - calculateNextInterval(temperatureData6Hour.back().timestamp, 21600000)); // 6 hours
+  }
+
+  Serial.println("Historical data loaded. Ready to start data collection.");
 
   Serial.print("Setting up AP: ");
   if (!WiFi.softAP(local_wifi_ssid.c_str(), local_wifi_password.c_str())) {
@@ -132,7 +145,16 @@ void loop() {
     if ((now - lastCollectionTime) > collectionInterval) {
         lastCollectionTime = now;
         
-        // Collect and buffer DHT data...
+        // Read and store data every 15 seconds
+        float temp = dht.readTemperature();
+        float hum = dht.readHumidity();
+        if (!isnan(temp) && !isnan(hum)) {
+          tempBuffer.push_back(temp);
+          humBuffer.push_back(hum);
+          Serial.printf("Collected data - Temp: %.2f, Humidity: %.2f\n", temp, hum);
+        } else {
+          Serial.println("Failed to read from DHT sensor.");
+        }
     }
 
     // Average data every 5 minutes
@@ -143,9 +165,8 @@ void loop() {
             // Calculate and store 5-minute average
             float avgTemp = std::accumulate(tempBuffer.begin(), tempBuffer.end(), 0.0) / tempBuffer.size();
             float avgHum = std::accumulate(humBuffer.begin(), humBuffer.end(), 0.0) / humBuffer.size();
-            temperatureData5Min.push_back(avgTemp);
-            humidityData5Min.push_back(avgHum);
-            timestamps5Min.push_back(getCurrentTimestamp());
+            //DataPoint newPoint = {avgTemp, avgHum, getCurrentEpoch()};
+            temperatureData5Min.push_back({avgTemp, avgHum, getCurrentEpoch()});
 
             Serial.printf("5-Minute Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
             
@@ -156,44 +177,71 @@ void loop() {
     }
 
     // Aggregate to hourly data every hour
-    if ((now - lastHourlyAggregation) > 3600000) { // 1 hour
-        lastHourlyAggregation = now;
+    if ((now - lastHourlyAggregation) >= 3600000) { // 1 hour
+      lastHourlyAggregation = now;
 
-        // Aggregate last 12 5-minute points into an hourly average
-        if (temperatureData5Min.size() >= 12) {
-            float avgTemp = std::accumulate(temperatureData5Min.end() - 12, temperatureData5Min.end(), 0.0) / 12;
-            float avgHum = std::accumulate(humidityData5Min.end() - 12, humidityData5Min.end(), 0.0) / 12;
-            temperatureDataHourly.push_back(avgTemp);
-            humidityDataHourly.push_back(avgHum);
-            timestampsHourly.push_back(getCurrentTimestamp());
+      // Aggregate the last 12 5-minute points into an hourly average
+      if (temperatureData5Min.size() >= 12) {
+            float tempSum = 0.0;
+            float humSum = 0.0;
 
-            Serial.printf("Hourly Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
-            
-            // Rotate and save 5-minute data only after aggregating it into hourly data
-            rotateAndSave5MinuteData();
-            rotateAndSaveHourlyData();
-        }
+            // Sum temperature and humidity from the last 12 5 min DataPoints
+            for (auto it = temperatureData5Min.end() - 12; it != temperatureData5Min.end(); ++it) {
+                tempSum += it->temperature;
+                humSum += it->humidity;
+            }
+
+            // Calculate averages and add new 1-hour DataPoint
+            float avgTemp = tempSum / 12;
+            float avgHum = humSum / 12;
+            temperatureDataHourly.push_back({avgTemp, avgHum, getCurrentEpoch()});
+
+
+          Serial.printf("Hourly Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
+
+          // Rotate and save 5-minute data only after aggregating it into hourly data
+          if (temperatureData5Min.size() > MAX_5MIN_POINTS) {
+              rotateAndSave5MinuteData();
+          }
+      }
     }
+
 
     // Aggregate to 6-hour data every 6 hours
-    if ((now - last6HourAggregation) > 21600000) { // 6 hours
+    if ((now - last6HourAggregation) >= 21600000) { // 6 hours
         last6HourAggregation = now;
 
-        // Aggregate last 6 hourly points into a 6-hour average
-        if (temperatureDataHourly.size() >= 6) {
-            float avgTemp = std::accumulate(temperatureDataHourly.end() - 6, temperatureDataHourly.end(), 0.0) / 6;
-            float avgHum = std::accumulate(humidityDataHourly.end() - 6, humidityDataHourly.end(), 0.0) / 6;
-            temperatureData6Hour.push_back(avgTemp);
-            humidityData6Hour.push_back(avgHum);
-            timestamps6Hour.push_back(getCurrentTimestamp());
+        if (temperatureDataHourly.size() >= 6) {  // Ensure we have enough hourly data for 6-hour aggregation
+            float tempSum = 0.0;
+            float humSum = 0.0;
+
+            // Sum temperature and humidity from the last 6 hourly DataPoints
+            for (auto it = temperatureDataHourly.end() - 6; it != temperatureDataHourly.end(); ++it) {
+                tempSum += it->temperature;
+                humSum += it->humidity;
+            }
+
+            // Calculate averages and add new 6-hour DataPoint
+            float avgTemp = tempSum / 6;
+            float avgHum = humSum / 6;
+            temperatureData6Hour.push_back({avgTemp, avgHum, getCurrentEpoch()});
 
             Serial.printf("6-Hour Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
-            
-            // Rotate and save hourly data only after aggregating it into 6-hour data
-            rotateAndSaveHourlyData();
-            rotateAndSave6HourData();
+
+            // Rotate and save 6-hour data if it exceeds the maximum limit after aggregation
+            if (temperatureData6Hour.size() > MAX_6HOUR_POINTS) {
+                rotateAndSave6HourData();
+            }
         }
     }
+
+    // Rotate and save hourly data if it exceeds the maximum limit after 6-hour aggregation
+    // NOTE: Keeping this after 6-hour aggregation to ensure we don't lose any data is important
+    if (temperatureDataHourly.size() > MAX_HOURLY_POINTS) {
+        rotateAndSaveHourlyData();
+    }
+
+
 
     // Send IR signal every 10 seconds
     if ((now - lastIRSendTime) > irInterval) {
