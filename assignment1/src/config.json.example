@@ -1,0 +1,45 @@
+{
+  "wifi": {
+    "ssid": "YourNetworkSSID",
+    "password": "YourNetworkPassword"
+  },
+  "web": {
+    "username": "admin",
+    "password": "securepassword",
+    "port": 80
+  },
+  "temperature_settings": {
+    "desired_temp": 22,
+    "temp_range": {
+      "min": 18,
+      "max": 26
+    },
+    "schedule": [
+      {
+        "day": "Monday",
+        "start_time": "02:00",
+        "end_time": "04:00",
+        "temp": 20
+      },
+      {
+        "day": "Monday",
+        "start_time": "04:00",
+        "end_time": "06:00",
+        "temp": 24
+      },
+      {
+        "day": "Tuesday",
+        "start_time": "01:00",
+        "end_time": "03:00",
+        "temp": 21
+      }
+    ]
+  },
+  "jwt": {
+    "secret": "my_secret_key"
+  },
+  "thingspeak": {
+    "api_key": "YOUR_API_KEY",
+    "channel_id": 123456
+  }
+}
