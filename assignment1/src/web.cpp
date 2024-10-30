@@ -214,60 +214,54 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
     }
     Serial.printf("[HTTP] GET /api/data - Requested period: %s\n", period.c_str());
 
-    // Prepare the data based on the requested period
-    std::vector<float> filteredTemperatureData;
-    std::vector<float> filteredHumidityData;
-    std::vector<String> filteredTimestamps;
-
-    // Filter data based on the requested period
-    /*
+    // Select appropriate data vector based on the period
+    std::vector<DataPoint>* selectedData;
     if (period == "day") {
-        filterDataForDay(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+        selectedData = &temperatureData5Min; // Use 5-minute data for a day's worth of points
     } else if (period == "week") {
-        filterDataForWeek(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+        selectedData = &temperatureDataHourly; // Use hourly data for a week
     } else if (period == "month") {
-        filterDataForMonth(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+        selectedData = &temperatureDataHourly; // Use hourly data for a month
     } else if (period == "year") {
-        filterDataForYear(filteredTemperatureData, filteredHumidityData, filteredTimestamps);
+        selectedData = &temperatureData6Hour; // Use 6-hour data for a year
     } else {
         request->send(400, "application/json", "{\"error\":\"Invalid period parameter\"}");
         return;
-    } */
-
-    // Create JSON document to hold the response
-    StaticJsonDocument<4096> jsonDoc;
-
-    // Populate temperature and humidity data
-    JsonArray temperatureArray = jsonDoc.createNestedArray("temperature");
-    for (float temp : filteredTemperatureData) {
-        temperatureArray.add(temp);
     }
 
-    JsonArray humidityArray = jsonDoc.createNestedArray("humidity");
-    for (float hum : filteredHumidityData) {
-        humidityArray.add(hum);
+    // Set up the response stream
+    //NOTE: We are streaming the response to avoid memory issues with large data sets
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+
+    // Start JSON object
+    response->print("{\"temperature\":[");
+    for (size_t i = 0; i < selectedData->size(); ++i) {
+        response->print(selectedData->at(i).temperature);
+        if (i < selectedData->size() - 1) {
+            response->print(","); // Add comma between items
+        }
     }
+    response->print("],\"humidity\":[");
 
-    JsonArray timestampArray = jsonDoc.createNestedArray("timestamps");
-    for (String ts : filteredTimestamps) {
-        timestampArray.add(ts);
+    for (size_t i = 0; i < selectedData->size(); ++i) {
+        response->print(selectedData->at(i).humidity);
+        if (i < selectedData->size() - 1) {
+            response->print(",");
+        }
     }
+    response->print("],\"timestamps\":[");
 
-    // Populate activity log
-    JsonArray activityLogArray = jsonDoc.createNestedArray("activityLog");
-    for (const auto& log : activityLog) {
-      JsonObject logEntry = activityLogArray.createNestedObject();
-      logEntry["timestamp"] = log.timestamp;
-      logEntry["action"] = log.action;
-      logEntry["details"] = log.details;
+    for (size_t i = 0; i < selectedData->size(); ++i) {
+        response->print(selectedData->at(i).timestamp);
+        if (i < selectedData->size() - 1) {
+            response->print(",");
+        }
     }
+    response->print("],\"message\":\"Thanks for using SmartAC Remote!\"}");
 
-    jsonDoc["message"] = "Thanks for using SmartAC Remote!";
+    // Send the response
+    request->send(response);
 
-    // Serialize JSON document to string and send it in the response
-    String jsonResponse;
-    serializeJson(jsonDoc, jsonResponse);
-    request->send(200, "application/json", jsonResponse);
   });
 
 
