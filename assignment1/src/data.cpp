@@ -48,13 +48,13 @@ void loadData() {
     Serial.println("Loading data from SPIFFS");
 
     // Load 5-minute data
-    loadJsonData("/data_5min.json", temperatureData5Min, humidityData5Min, timestamps5Min, 8192, "5-minute");
+    loadJsonData("/data_5min.json", temperatureData5Min, humidityData5Min, timestamps5Min, 132000, "5-minute");
 
     // Load hourly data
-    loadJsonData("/data_hourly.json", temperatureDataHourly, humidityDataHourly, timestampsHourly, 4096, "hourly");
+    loadJsonData("/data_hourly.json", temperatureDataHourly, humidityDataHourly, timestampsHourly, 65535, "hourly");
 
     // Load 6-hour data
-    loadJsonData("/data_6hour.json", temperatureData6Hour, humidityData6Hour, timestamps6Hour, 6144, "6-hour");
+    loadJsonData("/data_6hour.json", temperatureData6Hour, humidityData6Hour, timestamps6Hour, 128000, "6-hour");
 }
 
 // Helper function to load JSON data from a file on SPIFFS
@@ -68,6 +68,12 @@ void loadJsonData(const char* path, std::vector<float>& temperatureData, std::ve
 
     // Use DynamicJsonDocument to allocate memory on the heap
     DynamicJsonDocument* doc = new DynamicJsonDocument(jsonCapacity);
+    if (doc->capacity() == 0) {
+        Serial.printf("Failed to allocate memory for %s data\n", label);
+        delete doc;  // Clean up to avoid memory leaks
+        return;
+    }
+
     DeserializationError error = deserializeJson(*doc, file);
     file.close();
 
@@ -103,6 +109,13 @@ void rotateAndSave5MinuteData() {
   // Save the latest 5-minute data to SPIFFS
   // Allocate the DynamicJsonDocument on the heap
   DynamicJsonDocument* doc = new DynamicJsonDocument(8192);  // Adjust capacity if needed
+
+  if (doc->capacity() == 0) {
+    Serial.println("Failed to allocate memory for 5-minute data");
+    delete doc;
+    return;
+  }
+
   JsonArray tempArray = doc->createNestedArray("temperature");
   JsonArray humArray = doc->createNestedArray("humidity");
   JsonArray timeArray = doc->createNestedArray("timestamps");
@@ -126,6 +139,13 @@ void rotateAndSaveHourlyData() {
   // Save the latest hourly data to SPIFFS
   // Allocate the DynamicJsonDocument on the heap
   DynamicJsonDocument* doc = new DynamicJsonDocument(4096);  // Adjust capacity if needed
+
+  if (doc->capacity() == 0) {
+    Serial.println("Failed to allocate memory for hourly data");
+    delete doc;
+    return;
+  }
+
   JsonArray tempArray = doc->createNestedArray("temperature");
   JsonArray humArray = doc->createNestedArray("humidity");
   JsonArray timeArray = doc->createNestedArray("timestamps");
@@ -149,6 +169,13 @@ void rotateAndSave6HourData() {
   // Save the latest 6-hour data to SPIFFS
   // Allocate the DynamicJsonDocument on the heap
   DynamicJsonDocument* doc = new DynamicJsonDocument(6144);  // Adjust capacity if needed
+
+  if (doc->capacity() == 0) {
+    Serial.println("Failed to allocate memory for 6-hour data");
+    delete doc;
+    return;
+  }
+
   JsonArray tempArray = doc->createNestedArray("temperature");
   JsonArray humArray = doc->createNestedArray("humidity");
   JsonArray timeArray = doc->createNestedArray("timestamps");
