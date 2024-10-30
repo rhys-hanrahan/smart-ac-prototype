@@ -3,8 +3,8 @@
     "ssid": "YourNetworkSSID",
     "password": "YourNetworkPassword"
   },
-  "web": {
-    "username": "admin",
+  "login": {
+    "user": "admin",
     "password": "securepassword",
     "port": 80
   },

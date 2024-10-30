@@ -12,7 +12,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   const data = await response.json();
   if (response.ok) {
     localStorage.setItem('jwtToken', data.token);
-    window.location.href = '/dashboard.html';
+    window.location.href = '/dashboard';
   } else {
     document.getElementById('loginError').style.display = 'block';
   }

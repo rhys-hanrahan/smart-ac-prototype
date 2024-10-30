@@ -11,6 +11,7 @@
 #include <AsyncTCP.h> // https://randomnerdtutorials.com/esp32-esp8266-web-server-http-authentication/
 #include <base64.h>
 #include <CustomJWT.h>
+#include <ESPmDNS.h>
 
 struct Config {
   String wifi_ssid;
@@ -171,8 +172,32 @@ void saveConfig() {
 
 void setupWebServer() {
 
-  server.serveStatic("/", SPIFFS, "/").setDefaultFile("/index.html");
+  // Redirect root ("/") to "/dashboard"
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (request->hasHeader("Authorization")) {
+      String authHeader = request->header("Authorization");
+      if (authHeader.startsWith("Bearer ")) {
+        String token = authHeader.substring(7);
+        if (isValidJWTToken(token)) {
+          request->redirect("/dashboard");
+          return;
+        }
+      }
+    }
+    //If no token, redirect to login
+    request->redirect("/login");
+  });
+
   server.serveStatic("/dashboard", SPIFFS, "/dashboard.html");
+  server.on("/dashboard.html", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/dashboard");
+  });
+
+  server.serveStatic("/login", SPIFFS, "/login.html");
+  server.on("/login.html", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/login");
+  });
+
   server.serveStatic("/css", SPIFFS, "/css");
   server.serveStatic("/js", SPIFFS, "/js");
 
@@ -229,6 +254,17 @@ void setupWebServer() {
   server.begin();
 }
 
+void setupMulticastDNS() {
+  Serial.println("Starting mDNS responder...");
+  if (!MDNS.begin("smartac")) { // Start the mDNS responder for smartac.local
+    Serial.println("Error setting up MDNS responder!");
+    while (1) {
+      delay(1000);
+    }
+  }
+  Serial.println("mDNS responder started for smartac.local");
+}
+
 void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
   switch(event) {
     case SYSTEM_EVENT_AP_STACONNECTED:
@@ -260,7 +296,7 @@ void setup() {
   loadConfig();
   // Setup DHH
   dht.begin();
-  Serial.print("Started DHT");
+  Serial.println("Started DHT");
 
   pinMode (LEDPIN, OUTPUT);
   ac.begin();
@@ -270,14 +306,17 @@ void setup() {
   setupWebServer(); //Setup HTTP Routing
 
   if (config.wifi_ssid.length() > 0) {
+    Serial.println("Found saved WiFi credentials for: " + config.wifi_ssid);
     Serial.println("Connecting to WiFi...");
     WiFi.begin(config.wifi_ssid.c_str(), config.wifi_password.c_str());
     while (WiFi.status() != WL_CONNECTED) {
       delay(1000);
       Serial.println("Connecting to WiFi...");
     }
-    Serial.println("Connected to WiFi");
+    Serial.println("Connected to WiFi with IP: " + WiFi.localIP().toString());
   }
+
+  setupMulticastDNS();
 }
 
 void loop() {
