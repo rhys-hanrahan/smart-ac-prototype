@@ -31,6 +31,7 @@ void saveDataPoints(const char* path, const std::vector<DataPoint>& data) {
 
     // Calculate the checksum over the data points
     uint32_t checksum = calculateCRC32((uint8_t*)data.data(), data.size() * sizeof(DataPoint));
+    Serial.printf("Checksum calculated during save: 0x%08X\n", checksum);
 
     // Create and write DataPointHeader with checksum
     DataPointHeader header;
@@ -65,6 +66,7 @@ std::vector<DataPoint> loadDataPoints(const char* path, DataPointHeader& header)
 
     // Read DataPointHeader
     file.read((uint8_t*)&header, sizeof(DataPointHeader));
+    Serial.printf("Expected checksum from header: 0x%08X\n", header.checksum);
 
     // Check the version (optional)
     if (header.version != 1) {
@@ -82,6 +84,31 @@ std::vector<DataPoint> loadDataPoints(const char* path, DataPointHeader& header)
 
     file.close();
     Serial.printf("Read %d data points from file\n", data.size());
+
+    // Print a sample of the loaded data points for verification
+    if (!data.empty()) {
+        Serial.println("Sample loaded data points:");
+        for (size_t i = 0; i < 5 && i < data.size(); ++i) {
+            Serial.printf("DataPoint %d - Temp: %.2f, Hum: %.2f, Timestamp: %u\n",
+                        i, data[i].temperature, data[i].humidity, data[i].timestamp);
+        }
+    }
+
+    // Check file size to ensure it matches expected size
+    size_t expectedSize = sizeof(DataPointHeader) + (header.recordCount * sizeof(DataPoint));
+    // Reopen to check file size immediately after writing
+    File checkFile = SPIFFS.open(path, FILE_READ);
+    if (checkFile) {
+        Serial.printf("File %s read with size: %d bytes\n", path, checkFile.size());
+        if (checkFile.size() != expectedSize) {
+            Serial.printf("File size mismatch! Expected: %d bytes, Actual: %d bytes\n", expectedSize, checkFile.size());
+        } else {
+            Serial.println("File size matches expected size");
+        }
+        checkFile.close();
+    } else {
+        Serial.println("Failed to reopen file for size check.");
+    }
 
     // Verify checksum
     uint32_t calculatedChecksum = calculateCRC32((uint8_t*)data.data(), data.size() * sizeof(DataPoint));
@@ -142,8 +169,7 @@ void rotateAndSave5MinuteData() {
         temperatureData5Min.erase(temperatureData5Min.begin());
     }
 
-    // Save the latest 5-minute data to SPIFFS
-    saveDataPoints("/data_5min.bin", temperatureData5Min);
+
 }
 
 void rotateAndSaveHourlyData() {

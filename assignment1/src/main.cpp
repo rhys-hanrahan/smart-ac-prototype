@@ -71,6 +71,25 @@ void setupMulticastDNS() {
   Serial.println("mDNS responder started for smartac.local");
 }
 
+void generateSampleData(const char* path) {
+    // Check if file already exists
+    if (SPIFFS.exists(path)) {
+        Serial.println("Sample data file already exists. Skipping creation.");
+        return;
+    }
+
+    // Generate sample data points
+    std::vector<DataPoint> sampleData;
+    uint32_t startTimestamp = 1729696995;
+    for (int i = 0; i < 5; i++) { // Create only 5 data points for simplicity
+        sampleData.push_back({20.0f + i, 50.0f + i * 5, startTimestamp + i * 300});
+    }
+
+    // Save data to SPIFFS
+    saveDataPoints(path, sampleData);
+}
+
+
 
 
 void setup() {
@@ -83,6 +102,37 @@ void setup() {
   }
   Serial.println("SPIFFS is mounted");
 
+  const char* path = "/sample_data.bin";
+  generateSampleData(path);
+
+  // Load and verify data from SPIFFS
+  DataPointHeader header;
+  std::vector<DataPoint> loadedData = loadDataPoints(path, header);
+
+  // Display loaded data and compare to sample
+  bool dataMatches = true;
+  Serial.println("Verifying loaded data points...");
+  for (size_t i = 0; i < loadedData.size(); ++i) {
+      float expectedTemp = 20.0f + i;
+      float expectedHum = 50.0f + i * 5;
+      uint32_t expectedTimestamp = 1729696995 + i * 300;
+      
+      if (loadedData[i].temperature != expectedTemp || 
+          loadedData[i].humidity != expectedHum || 
+          loadedData[i].timestamp != expectedTimestamp) {
+          Serial.printf("Data mismatch at index %d - Expected Temp: %.2f, Hum: %.2f, Timestamp: %u\n", 
+                        i, expectedTemp, expectedHum, expectedTimestamp);
+          dataMatches = false;
+      }
+  }
+
+  if (dataMatches) {
+      Serial.println("Test PASSED: Loaded data matches generated sample data.");
+  } else {
+      Serial.println("Test FAILED: Loaded data does not match generated sample data.");
+  }
+
+  
   Serial.println("Loading config...");
   loadConfig();
   Serial.println("Config loaded");
@@ -92,12 +142,15 @@ void setup() {
   // Check if we have any historical data and set last aggregation times
   if (!temperatureData5Min.empty()) {
       lastAverageTime = millis() - (millis() - calculateNextInterval(temperatureData5Min.back().timestamp, averageInterval));
+      Serial.printf("Setting last 5-minute aggregation: %lu\n", lastAverageTime);
   }
   if (!temperatureDataHourly.empty()) {
       lastHourlyAggregation = millis() - (millis() - calculateNextInterval(temperatureDataHourly.back().timestamp, 3600000)); // 1 hour
+      Serial.printf("Setting last hourly aggregation: %lu\n", lastHourlyAggregation);
   }
   if (!temperatureData6Hour.empty()) {
       last6HourAggregation = millis() - (millis() - calculateNextInterval(temperatureData6Hour.back().timestamp, 21600000)); // 6 hours
+      Serial.printf("Setting last 6-hour aggregation: %lu\n", last6HourAggregation);
   }
 
   Serial.println("Historical data loaded. Ready to start data collection.");
@@ -135,6 +188,18 @@ void setup() {
   }
 
   setupMulticastDNS();
+
+  // Configure time with NTP
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");  // Adjust time offset if needed (e.g., UTC offset)
+
+  // Wait for time to be set
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+      Serial.println("Failed to obtain time");
+      return;
+  }
+  Serial.println("Time initialized with NTP");
+  Serial.println(&timeinfo, "Time is: %A, %B %d %Y %H:%M:%S");
 }
 
 void loop() {
@@ -169,6 +234,9 @@ void loop() {
             temperatureData5Min.push_back({avgTemp, avgHum, getCurrentEpoch()});
 
             Serial.printf("5-Minute Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
+
+            // Save the latest 5-minute data to SPIFFS
+            saveDataPoints("/data_5min.bin", temperatureData5Min);
             
             // Clear buffers for the next 5-minute period
             tempBuffer.clear();
@@ -199,9 +267,11 @@ void loop() {
 
           Serial.printf("Hourly Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
 
-          // Rotate and save 5-minute data only after aggregating it into hourly data
-          if (temperatureData5Min.size() > MAX_5MIN_POINTS) {
-              rotateAndSave5MinuteData();
+          saveDataPoints("/data_hourly.bin", temperatureDataHourly);
+
+          // Rotate old points now that we have aggregated
+          while (temperatureData5Min.size() > MAX_5MIN_POINTS) {
+              temperatureData5Min.erase(temperatureData5Min.begin());
           }
       }
     }
@@ -228,17 +298,18 @@ void loop() {
 
             Serial.printf("6-Hour Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
 
-            // Rotate and save 6-hour data if it exceeds the maximum limit after aggregation
-            if (temperatureData6Hour.size() > MAX_6HOUR_POINTS) {
-                rotateAndSave6HourData();
-            }
-        }
-    }
+            saveDataPoints("/data_6hour.bin", temperatureData6Hour);
 
-    // Rotate and save hourly data if it exceeds the maximum limit after 6-hour aggregation
-    // NOTE: Keeping this after 6-hour aggregation to ensure we don't lose any data is important
-    if (temperatureDataHourly.size() > MAX_HOURLY_POINTS) {
-        rotateAndSaveHourlyData();
+        }
+
+        //Now we've done our aggregation, rotate old points.
+        while (temperatureDataHourly.size() > MAX_HOURLY_POINTS) {
+            temperatureDataHourly.erase(temperatureDataHourly.begin());
+        }
+
+        while (temperatureData6Hour.size() > MAX_6HOUR_POINTS) {
+            temperatureData6Hour.erase(temperatureData6Hour.begin());
+        }
     }
 
 
