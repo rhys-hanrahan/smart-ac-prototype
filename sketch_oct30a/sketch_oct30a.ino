@@ -7,12 +7,13 @@
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 #include <ArduinoJson.h>
+#include <SPIFFS.h>
 
 struct Config {
-  String ssid[32];
-  String password[32];
-  String username;
-  String userpass;
+  String wifi_ssid;
+  String wifi_password; //Wifi Password
+  String web_username; //Web username
+  String web_userpass; //Web password
   float tempSchedule[7][24]; // Store temperature settings by day and hour
 } config;
 
@@ -34,26 +35,18 @@ unsigned long timerDelay = 2000;
 
 //Setup Daikin AC
 //https://github.com/crankyoldgit/IRremoteESP8266/blob/master/examples/TurnOnDaikinAC/TurnOnDaikinAC.ino
-const uint16_t kIrLed = 5;  // ESP8266 GPIO pin to use. Recommended: 4 (D2). NOTE: ESP32 doesnt use the same pinout.
+const uint16_t kIrLed = IRTXPIN;  // ESP8266 GPIO pin to use. Recommended: 4 (D2). NOTE: ESP32 doesnt use the same pinout.
 IRDaikinESP ac(kIrLed);  // Set the GPIO to be used to sending the message
 
 //Webserver
 AsyncWebServer server(80); // Web server
-
-struct Config {
-  char ssid[32];
-  char wifi_password[32]; //Wifi Password
-  String username; //Web username
-  String userpass; //Web password
-  float tempSchedule[7][24]; // Store temperature settings by day and hour
-} config;
-
 
 void loadConfig() {
   if (!SPIFFS.begin()) {
     Serial.println("Failed to mount file system");
     return;
   }
+  Serial.println("SPIFFS is mounted");
   
   File configFile = SPIFFS.open("/config.json", "r");
   if (!configFile) {
@@ -77,9 +70,9 @@ void loadConfig() {
     return;
   }
 
-  config.username = doc["login"]["user"].as<String>();
-  config.userpass = doc["login"]["password"].as<String>();
-  config.ssid = doc["wifi"]["ssid"].as<String>();
+  config.web_username = doc["login"]["user"].as<String>();
+  config.web_userpass = doc["login"]["password"].as<String>();
+  config.wifi_ssid = doc["wifi"]["ssid"].as<String>();
   config.wifi_password = doc["wifi"]["password"].as<String>();
   
   JsonArray schedule = doc["tempSchedule"].as<JsonArray>();
@@ -93,12 +86,11 @@ void loadConfig() {
   configFile.close();
 }
 
-// Save configuration to JSON file in SPIFFS
-void saveConfig() {
+DynamicJsonDocument getConfigJson() {
   DynamicJsonDocument doc(1024);
-  doc["login"]["user"] = config.username;
-  doc["login"]["password"] = config.userpass;
-  doc["wifi"]["ssid"] = config.ssid;
+  doc["login"]["user"] = config.web_username;
+  doc["login"]["password"] = config.web_userpass;
+  doc["wifi"]["ssid"] = config.wifi_ssid;
   doc["wifi"]["password"] = config.wifi_password;
 
   JsonArray schedule = doc.createNestedArray("tempSchedule");
@@ -108,6 +100,11 @@ void saveConfig() {
       daySchedule.add(config.tempSchedule[day][hour]);
     }
   }
+  return doc;
+}
+
+// Save configuration to JSON file in SPIFFS
+void saveConfig() {
 
   File configFile = SPIFFS.open("/config.json", "w");
   if (!configFile) {
@@ -115,6 +112,7 @@ void saveConfig() {
     return;
   }
 
+  DynamicJsonDocument doc = getConfigJson();
   serializeJson(doc, configFile);
   configFile.close();
 }
@@ -126,9 +124,7 @@ void setupWebServer() {
   
   server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     // Send configuration data to the client
-    DynamicJsonDocument doc(1024);
-    doc["ssid"] = config.ssid;
-    doc["user"] = config.username;
+    DynamicJsonDocument doc = getConfigJson();
     String output;
     serializeJson(doc, output);
     request->send(200, "application/json", output);
@@ -151,8 +147,8 @@ void setup() {
   setupWebServer(); //Setup HTTP Routing
 
   Serial.print("Connecting to SSID: ");
-  Serial.println(config.ssid);
-  WiFi.begin(config.ssid, config.password);
+  Serial.println(config.wifi_ssid);
+  WiFi.begin(config.wifi_ssid, config.wifi_password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
