@@ -58,34 +58,71 @@ function setupChart(temperatureData, humidityData, timestamps) {
           label: 'Temperature (°C)',
           data: temperatureData,
           borderColor: 'rgba(255, 99, 132, 1)',
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          yAxisID: 'y'
+          backgroundColor: 'rgba(255, 99, 132, 0.1)',
+          yAxisID: 'y',
+          tension: 0.4,  // Smooths out the line
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          fill: true  // Fill under the line
         },
         {
           label: 'Humidity (%)',
           data: humidityData,
           borderColor: 'rgba(54, 162, 235, 1)',
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          yAxisID: 'y1'
+          backgroundColor: 'rgba(54, 162, 235, 0.1)',
+          yAxisID: 'y1',
+          tension: 0.4,  // Smooths out the line
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          fill: true  // Fill under the line
         }
       ]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'top',  // Position legend at the top
+          labels: {
+            font: { size: 14 }
+          }
+        },
+        tooltip: {
+          mode: 'index',  // Show tooltip for both datasets
+          intersect: false
+        }
+      },
       scales: {
         y: {
           type: 'linear',
           position: 'left',
-          title: { display: true, text: 'Temperature (°C)' }
+          title: {
+            display: true,
+            text: 'Temperature (°C)',
+            font: { size: 16 }
+          },
+          grid: { display: false }  // Remove grid for cleaner look
         },
         y1: {
           type: 'linear',
           position: 'right',
-          title: { display: true, text: 'Humidity (%)' }
+          title: {
+            display: true,
+            text: 'Humidity (%)',
+            font: { size: 16 }
+          },
+          grid: { display: false }  // Remove grid for cleaner look
+        },
+        x: {
+          grid: { display: false },  // Remove vertical grid lines
+          ticks: { autoSkip: true, maxTicksLimit: 10 }  // Manage number of x-axis labels
         }
       }
     }
   });
 }
+
 
 function updateChart(temperatureData, humidityData, timestamps) {
   // Check if chart has been initialized; if not, set it up
