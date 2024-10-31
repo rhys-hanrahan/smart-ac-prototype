@@ -41,6 +41,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
+// Function to pad data points for consistent intervals
+// Original API data timestamp is in ISO 8601 format
+function padDataPoints(data, timestamps, intervalInMs) {
+  const now = Date.now();
+  const paddedData = [];
+  const paddedTimestamps = [];
+  
+  if (data.length === 0 || timestamps.length === 0) return { paddedData, paddedTimestamps };
+
+  // Parse the first timestamp to determine the starting point
+  let currentTime = new Date(timestamps[0].replace(" +00:00", "")).getTime();
+
+  data.forEach((value, index) => {
+    const pointTime = new Date(timestamps[index].replace(" +00:00", "")).getTime();
+
+    // Insert placeholder data points for any gaps
+    while (currentTime < pointTime) {
+      paddedData.push(null); // Null as a placeholder for missing data
+      paddedTimestamps.push(new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00'));
+      currentTime += intervalInMs;
+    }
+
+    // Add the actual data point and timestamp
+    paddedData.push(value);
+    paddedTimestamps.push(timestamps[index]);
+    currentTime += intervalInMs;
+  });
+
+  // Fill in any remaining points up to the current time
+  while (currentTime < now) {
+    paddedData.push(null);
+    paddedTimestamps.push(new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00'));
+    currentTime += intervalInMs;
+  }
+
+  return { paddedData, paddedTimestamps };
+}
+
 // Function to fetch data based on the selected time period and update the chart
 async function fetchDataAndUpdate(token, period) {
   const response = await fetch(`/api/data?period=${period}`, {
@@ -51,10 +89,30 @@ async function fetchDataAndUpdate(token, period) {
     const data = await response.json();
     document.getElementById('message').innerText = data.message;
 
-    // Adjust timestamps based on the selected period
-    const adjustedTimestamps = adjustTimestamps(data.timestamps, period);
+    // Determine the interval based on the period
+    let intervalInMs;
+    if (period === 'day') {
+      intervalInMs = 5 * 60 * 1000; // 5 minutes
+    } else if (period === 'week' || period === 'month') {
+      intervalInMs = 60 * 60 * 1000; // 1 hour
+    } else if (period === 'year') {
+      intervalInMs = 6 * 60 * 60 * 1000; // 6 hours
+    }
 
-    updateChart(period, data.temperature, data.humidity, adjustedTimestamps);
+    // Pad data points and timestamps for consistent intervals
+    const { paddedData: paddedTemperatureData, paddedTimestamps } = padDataPoints(data.temperature, data.timestamps, intervalInMs);
+    const { paddedData: paddedHumidityData } = padDataPoints(data.humidity, data.timestamps, intervalInMs);
+
+    // Adjust timestamps for display
+    const adjustedTimestamps = adjustTimestamps(paddedTimestamps, period);
+
+    updateChart(
+      period,
+      paddedTemperatureData,
+      paddedHumidityData,
+      adjustedTimestamps
+    );
+    
     updateActivityLog(data.activityLog);
   } else {
     localStorage.removeItem('jwtToken');
