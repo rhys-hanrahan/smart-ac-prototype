@@ -53,12 +53,12 @@ function padDataPoints(data, timestamps, intervalInMs) {
   if (data.length === 0 || timestamps.length === 0) return { paddedData, paddedTimestamps };
 
   // Parse the first timestamp to determine the starting point
-  let currentTime = new Date(timestamps[0].replace(" +00:00", "")).getTime();
+  let currentTime = Date.parse(timestamps[0].replace(" +00:00", "Z")); // Replace "+00:00" with "Z" to indicate UTC
   console.log('Curent time raw timestamp:', timestamps[0]);
   console.log('Current time - first timestamp:', currentTime, new Date(currentTime).toUTCString());
 
   data.forEach((value, index) => {
-    const pointTime = new Date(timestamps[index].replace(" +00:00", "")).getTime();
+    const pointTime = Date.parse(timestamps[index].replace(" +00:00", "Z"));
     console.log('Current point raw timestamp:', timestamps[index]);
     console.log('Point time of current point:', pointTime, new Date(pointTime).toUTCString());
 
