@@ -36,8 +36,8 @@ struct Condition {
   String field;        // Field to evaluate (e.g., "temperature", "feels_like")
   String operator_;    // Operator (e.g., ">", "<=", "within")
   float value;         // Threshold value for comparison
-  String start;        // For range-based conditions (start range)
-  String end;          // For range-based conditions (end range)
+  String start;        // For range-based conditions (start range). Could be a time or temperature
+  String end;          // For range-based conditions (end range). Could be a time or temperature
 };
 
 struct ConditionGroup {
@@ -51,14 +51,14 @@ struct Action {
   float target_temp;   // Target temperature for set_temp action
   float increment_value; // Value to increment or decrement temp by
   Condition repeat_if; // Condition to repeat the action
-  Condition condition; // Additional condition for action
+  ConditionGroup condition; // Additional condition for action
 };
 
 struct RuleSet {
   String name;                  // Name of the rule set
   String description;           // Description of the rule
   Timeframe timeframe;          // Timeframe when this rule is active
-  std::vector<ConditionGroup> conditions; // Conditions to evaluate
+  ConditionGroup conditions; // Conditions to evaluate
   std::vector<Action> actions;       // Actions to take if conditions met
 };
 
@@ -77,7 +77,9 @@ bool isDSTActive(int month, int day);
 
 // Functions to manage rules and AC state
 void loadRules();
+ConditionGroup loadConditionGroup(JsonObject &groupObj);
 void saveRules();
+void saveConditionGroup(const ConditionGroup &group, JsonObject &groupObj);
 bool isTimeframeValid(const Timeframe& timeframe);
 bool areConditionsMet(const std::vector<Condition>& conditions, const ACState& ac_state);
 bool isSeasonValid(const std::vector<String>& seasons);

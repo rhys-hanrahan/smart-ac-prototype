@@ -122,7 +122,7 @@ void createSampleRules() {
     timeOfDayCondition.end = "10:00";
     mainConditions.conditions.push_back(timeOfDayCondition);
 
-    nightComfortZone.conditions.push_back(mainConditions);
+    nightComfortZone.conditions = mainConditions;
 
     // Define actions
     Action setTempAction;

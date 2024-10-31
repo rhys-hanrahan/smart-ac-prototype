@@ -118,7 +118,7 @@ void loadRules() {
         return;
     }
 
-    DynamicJsonDocument doc(4096); // Adjust as needed
+    DynamicJsonDocument doc(4096); // Adjust size as needed
     DeserializationError error = deserializeJson(doc, file);
     file.close();
     if (error) {
@@ -133,6 +133,7 @@ void loadRules() {
         rule.description = ruleObj["description"].as<String>();
         Serial.printf("Loading rule: %s\n", rule.name.c_str());
 
+        // Load timeframe
         JsonObject timeframe = ruleObj["timeframe"];
         for (JsonVariant day : timeframe["days"].as<JsonArray>()) {
             rule.timeframe.days.push_back(day.as<String>());
@@ -143,23 +144,36 @@ void loadRules() {
             rule.timeframe.seasons.push_back(season.as<String>());
         }
 
-        for (JsonObject conditionObj : ruleObj["conditions"].as<JsonArray>()) {
-            Condition condition;
-            condition.field = conditionObj["field"].as<String>();
-            condition.operator_ = conditionObj["operator"].as<String>();
-            condition.value = conditionObj["value"].as<float>();
-            rule.conditions.push_back(condition);
-        }
+        // Load main condition group
+        JsonObject conditionsObj = ruleObj["conditions"];
+        rule.conditions = loadConditionGroup(conditionsObj);
 
+        // Load actions
         for (JsonObject actionObj : ruleObj["actions"].as<JsonArray>()) {
             Action action;
             action.type = actionObj["type"].as<String>();
             action.target_temp = actionObj["target_temp"].as<float>();
             action.increment_value = actionObj["increment_value"].as<float>();
+
+            // Load repeat_if condition
+            JsonObject repeatIfObj = actionObj["repeat_if"];
+            if (!repeatIfObj.isNull()) {
+                action.repeat_if.field = repeatIfObj["field"].as<String>();
+                action.repeat_if.operator_ = repeatIfObj["operator"].as<String>();
+                action.repeat_if.value = repeatIfObj["value"].as<float>();
+            }
+
+            // Load additional condition group for action
+            JsonObject conditionGroupObj = actionObj["condition"];
+            if (!conditionGroupObj.isNull()) {
+                action.condition = loadConditionGroup(conditionGroupObj);
+            }
+
             rule.actions.push_back(action);
         }
+
         Serial.printf("Rule loaded: %s\n", rule.name.c_str());
-        Serial.printf("Conditions: %d, Actions: %d\n", rule.conditions.size(), rule.actions.size());
+        Serial.printf("Conditions: %d, Actions: %d\n", rule.conditions.conditions.size(), rule.actions.size());
         Serial.println("----");
         rules.push_back(rule);
     }
@@ -175,8 +189,9 @@ void saveRules() {
         return;
     }
 
-    DynamicJsonDocument doc(4096); // Adjust as needed
+    DynamicJsonDocument doc(4096); // Adjust size as needed
     JsonArray rulesArray = doc.to<JsonArray>();
+
     for (const RuleSet &rule : rules) {
         JsonObject ruleObj = rulesArray.createNestedObject();
         ruleObj["name"] = rule.name;
@@ -190,20 +205,27 @@ void saveRules() {
         JsonArray seasons = timeframe.createNestedArray("seasons");
         for (const String &season : rule.timeframe.seasons) seasons.add(season);
 
-        JsonArray conditions = ruleObj.createNestedArray("conditions");
-        for (const Condition &condition : rule.conditions) {
-            JsonObject conditionObj = conditions.createNestedObject();
-            conditionObj["field"] = condition.field;
-            conditionObj["operator"] = condition.operator_;
-            conditionObj["value"] = condition.value;
-        }
+        // Save main condition group
+        JsonObject conditionsObj = ruleObj.createNestedObject("conditions");
+        saveConditionGroup(rule.conditions, conditionsObj);
 
+        // Save actions
         JsonArray actions = ruleObj.createNestedArray("actions");
         for (const Action &action : rule.actions) {
             JsonObject actionObj = actions.createNestedObject();
             actionObj["type"] = action.type;
             actionObj["target_temp"] = action.target_temp;
             actionObj["increment_value"] = action.increment_value;
+
+            // Save repeat_if condition
+            JsonObject repeatIfObj = actionObj.createNestedObject("repeat_if");
+            repeatIfObj["field"] = action.repeat_if.field;
+            repeatIfObj["operator"] = action.repeat_if.operator_;
+            repeatIfObj["value"] = action.repeat_if.value;
+
+            // Save additional condition group for action
+            JsonObject conditionGroupObj = actionObj.createNestedObject("condition");
+            saveConditionGroup(action.condition, conditionGroupObj);
         }
     }
 
@@ -212,6 +234,51 @@ void saveRules() {
     Serial.println("Rules saved successfully");
     Serial.printf("Saved %d rules\n", rules.size());
 }
+
+// Helper to load a ConditionGroup from JSON
+ConditionGroup loadConditionGroup(JsonObject &groupObj) {
+    ConditionGroup group;
+    group.operator_ = groupObj["operator"].as<String>();
+
+    // Load each condition or nested group
+    for (JsonVariant condition : groupObj["conditions"].as<JsonArray>()) {
+        if (condition.is<JsonObject>()) {
+            JsonObject conditionObj = condition.as<JsonObject>();
+
+            // Check if it’s a nested group or a simple condition
+            if (conditionObj.containsKey("operator")) {
+                ConditionGroup nestedGroup = loadConditionGroup(conditionObj);
+                group.groups.push_back(nestedGroup); // Add as nested group
+            } else {
+                Condition simpleCondition;
+                simpleCondition.field = conditionObj["field"].as<String>();
+                simpleCondition.operator_ = conditionObj["operator"].as<String>();
+                simpleCondition.value = conditionObj["value"].as<float>();
+                group.conditions.push_back(simpleCondition); // Add as simple condition
+            }
+        }
+    }
+    return group;
+}
+
+// Helper to save a ConditionGroup to JSON
+void saveConditionGroup(const ConditionGroup &group, JsonObject &groupObj) {
+    groupObj["operator"] = group.operator_;
+    JsonArray conditions = groupObj.createNestedArray("conditions");
+
+    for (const Condition &condition : group.conditions) {
+        JsonObject conditionObj = conditions.createNestedObject();
+        conditionObj["field"] = condition.field;
+        conditionObj["operator"] = condition.operator_;
+        conditionObj["value"] = condition.value;
+    }
+
+    for (const ConditionGroup &nestedGroup : group.groups) {
+        JsonObject nestedGroupObj = conditions.createNestedObject();
+        saveConditionGroup(nestedGroup, nestedGroupObj);
+    }
+}
+
 
 // Function to check if the current time is within a rule's timeframe
 // Works off local time only.
