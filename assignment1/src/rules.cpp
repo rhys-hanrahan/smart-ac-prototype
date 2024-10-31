@@ -4,7 +4,8 @@
 #include <ctime>
 
 std::vector<RuleSet> rules;
-ACState ac_state = {false, 22.0, "cool", false}; // Default state
+ACState ac_state = {false, 22.0, "cool", 1 }; // Default state
+TemperatureData temperature_data = { 0 };
 
 // Helper to get the current day as a string
 String getCurrentDay() {
@@ -239,41 +240,104 @@ bool isTimeframeValid(const Timeframe &timeframe) {
 }
 
 // Function to check if all conditions in a rule are met
-bool areConditionsMet(const std::vector<Condition> &conditions) {
-    for (const Condition &condition : conditions) {
+bool areConditionsMet(const ConditionGroup &conditionGroup, const ACState &ac_state) {
+    bool result = (conditionGroup.operator_ == "AND");
+
+    for (const Condition &condition : conditionGroup.conditions) {
+        bool conditionMet = false;
         float value = 0.0;
 
-        if (condition.field == "temperature") value = ac_state.current_temp;
-        else if (condition.field == "feels_like") value = ac_state.current_temp + 1.0; // Placeholder for actual feels-like value
+        // Determine value based on the condition field
+        if (condition.field == "temperature") {
+            value = temperature_data.temperature;
+        } else if (condition.field == "feels_like_temp") {
+            value = temperature_data.feels_like; // Replace with actual calculation if available
+        } else if (condition.field == "time_of_day") {
+            conditionMet = (currentTimeIsWithinRange(condition.start, condition.end));
+        }
 
-        if (condition.operator_ == ">" && !(value > condition.value)) return false;
-        if (condition.operator_ == "<" && !(value < condition.value)) return false;
-        if (condition.operator_ == ">=" && !(value >= condition.value)) return false;
-        if (condition.operator_ == "<=" && !(value <= condition.value)) return false;
-        if (condition.operator_ == "within" && !(value >= condition.start.toFloat() && value <= condition.end.toFloat())) return false;
+        // Evaluate the condition operator
+        if (condition.operator_ == ">" && value > condition.value) conditionMet = true;
+        else if (condition.operator_ == "<" && value < condition.value) conditionMet = true;
+        else if (condition.operator_ == ">=" && value >= condition.value) conditionMet = true;
+        else if (condition.operator_ == "<=" && value <= condition.value) conditionMet = true;
+        else if (condition.operator_ == "between") conditionMet = (value >= condition.start.toFloat() && value <= condition.end.toFloat());
+
+        // Combine with previous results based on the operator
+        if (conditionGroup.operator_ == "AND") result = result && conditionMet;
+        else if (conditionGroup.operator_ == "OR") result = result || conditionMet;
+
+        // Exit early if result is already determined
+        if (result == (conditionGroup.operator_ == "OR")) return result;
     }
-    return true;
+    return result;
+}
+
+bool currentTimeIsWithinRange(String start, String end) {
+    // Compare current time with start and end times
+    // Convert times to comparable format and evaluate
+    time_t now = time(nullptr);
+    struct tm *timeInfo = localtime(&now);
+    String currentTimeStr = String(timeInfo->tm_hour) + ":" + String(timeInfo->tm_min);
+    
+    // Implement comparison logic here
+    return (currentTimeStr >= start && currentTimeStr <= end);
 }
 
 // Function to execute actions based on the rule's configuration
-void executeAction(const Action &action) {
+void executeAction(const Action &action, ACState &ac_state) {
     if (action.type == "set_temp") {
         ac_state.current_temp = action.target_temp;
         Serial.printf("AC temperature set to %.2f\n", ac_state.current_temp);
     } else if (action.type == "increment_temp") {
-        ac_state.current_temp += action.increment_value;
-        Serial.printf("AC temperature incremented to %.2f\n", ac_state.current_temp);
+        ac_state.current_temp += action.increment_value; // Might be negative for decrement
+        if (action.increment_value < 0) {
+            Serial.printf("AC temperature decremented by %.2f to %.2f\n", -action.increment_value, ac_state.current_temp);
+        } else {
+            Serial.printf("AC temperature incremented by %.2f to %.2f\n", action.increment_value, ac_state.current_temp);
+        }
     }
 }
 
 // Main function to evaluate all rules and execute actions if conditions are met
 void evaluateRules() {
     for (const RuleSet &rule : rules) {
-        if (isTimeframeValid(rule.timeframe) && areConditionsMet(rule.conditions)) {
+        if (isTimeframeValid(rule.timeframe) && isSeasonValid(rule.timeframe.seasons) && areConditionsMet(rule.conditions, ac_state)) {
             Serial.printf("Executing actions for rule: %s\n", rule.name.c_str());
             for (const Action &action : rule.actions) {
-                executeAction(action);
+                executeAction(action, ac_state);
             }
         }
+    }
+}
+
+bool isSeasonValid(const std::vector<String> &seasons) {
+    String currentSeason = getCurrentSeason();
+    for (const String &season : seasons) {
+        if (season == currentSeason) return true;
+    }
+    return false;
+}
+
+bool isDayValid(const std::vector<String> &days) {
+    time_t now = time(nullptr);
+    struct tm *timeInfo = localtime(&now);
+    String currentDay = weekdayToString(timeInfo->tm_wday);
+    for (const String &day : days) {
+        if (day == currentDay) return true;
+    }
+    return false;
+}
+
+String weekdayToString(int wday) {
+    switch (wday) {
+        case 0: return "Sunday";
+        case 1: return "Monday";
+        case 2: return "Tuesday";
+        case 3: return "Wednesday";
+        case 4: return "Thursday";
+        case 5: return "Friday";
+        case 6: return "Saturday";
+        default: return "";
     }
 }

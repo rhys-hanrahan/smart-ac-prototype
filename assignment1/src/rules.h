@@ -14,6 +14,16 @@ struct ACState {
   bool fan_on;
 };
 
+/* Store recent temp data state for comparison */
+struct TemperatureData {
+  float temperature;
+  float humidity;
+  float feels_like;
+  float temperature_5min;
+  float humidity_5min;
+  float feels_like_5min;
+};
+
 // Define structures for rules
 struct Timeframe {
   std::vector<String> days; // Array of days this rule applies (e.g., "Monday")
@@ -28,6 +38,12 @@ struct Condition {
   float value;         // Threshold value for comparison
   String start;        // For range-based conditions (start range)
   String end;          // For range-based conditions (end range)
+};
+
+struct ConditionGroup {
+  String operator_;    // Operator for combining conditions (e.g., "AND", "OR")
+  std::vector<Condition> conditions; // Array of conditions to evaluate
+  std::vector<ConditionGroup> groups; // Nested groups of conditions
 };
 
 struct Action {
@@ -62,7 +78,11 @@ bool isDSTActive(int month, int day);
 void loadRules();
 void saveRules();
 bool isTimeframeValid(const Timeframe& timeframe);
-bool areConditionsMet(const std::vector<Condition>& conditions);
+bool areConditionsMet(const std::vector<Condition>& conditions, const ACState& ac_state);
+bool isSeasonValid(const std::vector<String>& seasons);
+bool isDayValid(const std::vector<String>& days);
+bool currentTimeIsWithinRange(String start, String end);
+String weekdayToString(int wday);
 void executeAction(const Action& action);
 void evaluateRules(); // Main function to evaluate all rules against current AC state
 
