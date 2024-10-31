@@ -79,9 +79,9 @@ String determineHemisphere() {
 
     // Determine hemisphere based on the offset difference
     int diff = janOffset - julOffset;
-    if (diff > 0 || (julDST && !janDST)) return "Northern";
-    if (diff < 0 || (janDST && !julDST)) return "Southern";
-    return "Unknown"; // For regions near the equator or regions without DST
+    if (diff > 0 || (julDST && !janDST)) return "northern";
+    if (diff < 0 || (janDST && !julDST)) return "southern";
+    return "unknown"; // For regions near the equator or regions without DST
 }
 
 // Helper to get the current season based on month in AU
@@ -94,10 +94,10 @@ String getCurrentSeason() {
     int month = timeInfo->tm_mon + 1;
 
     // Adjust based on hemisphere, default to Southern (Australia) if unknown
-    if (hemisphere == "Northern") {
+    if (hemisphere == "northern") {
         if (month >= 3 && month <= 5) return "spring";
         if (month >= 6 && month <= 8) return "summer";
-        if (month >= 9 && month <= 11) return "fall";
+        if (month >= 9 && month <= 11) return "autumn";
         return "winter"; // December to February
     } else {
         // Southern Hemisphere or default (Australia)
