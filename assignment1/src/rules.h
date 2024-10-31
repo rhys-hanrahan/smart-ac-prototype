@@ -58,13 +58,14 @@ struct RuleSet {
   String name;                  // Name of the rule set
   String description;           // Description of the rule
   Timeframe timeframe;          // Timeframe when this rule is active
-  std::vector<Condition> conditions; // Conditions to evaluate
+  std::vector<ConditionGroup> conditions; // Conditions to evaluate
   std::vector<Action> actions;       // Actions to take if conditions met
 };
 
 // Global instances for rules and AC state
 extern std::vector<RuleSet> rules;
 extern ACState ac_state;
+extern TemperatureData temperature_data;
 
 // Time functions
 String determineHemisphere();
@@ -85,5 +86,7 @@ bool currentTimeIsWithinRange(String start, String end);
 String weekdayToString(int wday);
 void executeAction(const Action& action);
 void evaluateRules(); // Main function to evaluate all rules against current AC state
+
+float getFeelsLikeTemperature(float temp, float humidity);
 
 #endif // RULES_H

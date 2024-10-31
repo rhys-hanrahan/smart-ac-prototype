@@ -90,7 +90,70 @@ void generateSampleData(const char* path) {
     saveDataPoints(path, sampleData);
 }
 
+void createSampleRules() {
+    // Clear any existing rules
+    rules.clear();
 
+    // Example Rule: Night Comfort Zone
+    RuleSet nightComfortZone;
+    nightComfortZone.name = "Night Comfort Zone";
+    nightComfortZone.description = "Adjust temperature at night based on 'feels like' temperature";
+
+    // Set timeframe
+    nightComfortZone.timeframe.days = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
+    nightComfortZone.timeframe.start_time = "21:00";
+    nightComfortZone.timeframe.end_time = "10:00";
+    nightComfortZone.timeframe.seasons = {"winter", "autumn", "spring"};
+
+    // Define conditions
+    ConditionGroup mainConditions;
+    mainConditions.operator_ = "AND";
+
+    Condition feelsLikeCondition;
+    feelsLikeCondition.field = "feels_like_temp";
+    feelsLikeCondition.operator_ = ">";
+    feelsLikeCondition.value = 22.0;
+    mainConditions.conditions.push_back(feelsLikeCondition);
+
+    Condition timeOfDayCondition;
+    timeOfDayCondition.field = "time_of_day";
+    timeOfDayCondition.operator_ = "between";
+    timeOfDayCondition.start = "21:00";
+    timeOfDayCondition.end = "10:00";
+    mainConditions.conditions.push_back(timeOfDayCondition);
+
+    nightComfortZone.conditions.push_back(mainConditions);
+
+    // Define actions
+    Action setTempAction;
+    setTempAction.type = "set_temp";
+    setTempAction.target_temp = 22;
+    nightComfortZone.actions.push_back(setTempAction);
+
+    Action incrementTempAction;
+    incrementTempAction.type = "increment_temp";
+    incrementTempAction.increment_value = 2;
+    ConditionGroup incTempConditionGroup;
+    incTempConditionGroup.operator_ = "AND";
+
+    Condition feelsLikeLowerCondition;
+    feelsLikeLowerCondition.field = "feels_like_temp";
+    feelsLikeLowerCondition.operator_ = "<";
+    feelsLikeLowerCondition.value = 20.0;
+    incTempConditionGroup.conditions.push_back(feelsLikeLowerCondition);
+
+    Condition targetTempLowerCondition;
+    targetTempLowerCondition.field = "target_temp";
+    targetTempLowerCondition.operator_ = "<";
+    targetTempLowerCondition.value = 22.0;
+    incTempConditionGroup.conditions.push_back(targetTempLowerCondition);
+
+    incrementTempAction.condition = incTempConditionGroup;
+    nightComfortZone.actions.push_back(incrementTempAction);
+
+    // Add rule to the list
+    rules.push_back(nightComfortZone);
+}
 
 
 void setup() {
@@ -248,6 +311,9 @@ void loop() {
         if (!isnan(temp) && !isnan(hum)) {
           tempBuffer.push_back(temp);
           humBuffer.push_back(hum);
+          temperature_data.temperature = temp; // Update global temperature
+          temperature_data.humidity = hum; // Update global humidity
+          temperature_data.feels_like = getFeelsLikeTemperature(temp, hum); // Update global feels like temperature
           Serial.printf("Collected data - Temp: %.2f, Humidity: %.2f\n", temp, hum);
         } else {
           Serial.println("Failed to read from DHT sensor.");
@@ -264,7 +330,9 @@ void loop() {
             float avgHum = std::accumulate(humBuffer.begin(), humBuffer.end(), 0.0) / humBuffer.size();
             //DataPoint newPoint = {avgTemp, avgHum, getCurrentEpoch()};
             temperatureData5Min.push_back({avgTemp, avgHum, getCurrentEpoch()});
-
+            temperature_data.temperature_5min = avgTemp; // Update global temperature
+            temperature_data.humidity_5min = avgHum; // Update global humidity
+            temperature_data.feels_like_5min = getFeelsLikeTemperature(avgTemp, avgHum); // Update global feels like temperature
             Serial.printf("5-Minute Average - Temp: %.2f, Humidity: %.2f\n", avgTemp, avgHum);
 
             // Save the latest 5-minute data to SPIFFS

@@ -341,3 +341,24 @@ String weekdayToString(int wday) {
         default: return "";
     }
 }
+
+//Based on : https://byjus.com/heat-index-formula
+// https://en.wikipedia.org/wiki/Heat_index
+// HI = Heat Index (feels like)
+// T = Temperature in Celsius
+// R = Relative Humidity
+float getFeelsLikeTemperature(float temp, float humidity) {
+    float c1 = -8.78469475556;
+    float c2 = 1.61139411;
+    float c3 = 2.33854883889;
+    float c4 = -0.14611605;
+    float c5 = -0.012308094;
+    float c6 = -0.0164248277778;
+    float c7 = 0.002211732;
+    float c8 = 0.00072546;
+    float c9 = -0.000003582;
+
+    float T = temp;
+    float R = humidity;
+    return c1 + c2 * T + c3 * R + c4 * T * R + c5 * T * T + c6 * R * R + c7 * T * T * R + c8 * T * R * R + c9 * T * T * R * R;
+}
