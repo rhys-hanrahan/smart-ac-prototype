@@ -160,6 +160,10 @@ void setup() {
   }
 
   Serial.println("Historical data loaded. Ready to start data collection.");
+  Serial.printf("Loaded %d 5-minute data points\n", temperatureData5Min.size());
+  Serial.printf("Loaded %d hourly data points\n", temperatureDataHourly.size());
+  Serial.printf("Loaded %d 6-hour data points\n", temperatureData6Hour.size());
+
 
   Serial.print("Setting up AP: ");
   if (!WiFi.softAP(local_wifi_ssid.c_str(), local_wifi_password.c_str())) {
@@ -181,6 +185,8 @@ void setup() {
   //jwt.allocateJWTMemory();
   Serial.println("Starting Web Server...");
   setupWebServer(); //Setup HTTP Routing
+  setupMulticastDNS();
+
 
   if (config.wifi_ssid.length() > 0) {
     Serial.println("Found saved WiFi credentials for: " + config.wifi_ssid);
@@ -192,8 +198,6 @@ void setup() {
     }
     Serial.println("Connected to WiFi with IP: " + WiFi.localIP().toString());
   }
-
-  setupMulticastDNS();
 
   // Configure time with NTP
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");  // Adjust time offset if needed (e.g., UTC offset)

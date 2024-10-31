@@ -157,7 +157,7 @@ void loadHistoricalData() {
     }
     // Load hourly data
     Serial.println("Loading hourly data...");
-    if (!loadDataPoints("/data_hourly.bin", header, temperatureData5Min)) {
+    if (!loadDataPoints("/data_hourly.bin", header, temperatureDataHourly)) {
         Serial.println("Failed to load hourly data");
     } else {
         Serial.printf("Loaded %d hourly data points\n", temperatureDataHourly.size());

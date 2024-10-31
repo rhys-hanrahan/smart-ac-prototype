@@ -228,7 +228,7 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(400, "application/json", "{\"error\":\"Invalid period parameter\"}");
         return;
     }
-
+    Serial.printf("[HTTP] GET /api/data - Sending %d data points for period %s\n", selectedData->size(), period.c_str());
     // Set up the response stream
     //NOTE: We are streaming the response to avoid memory issues with large data sets
     AsyncResponseStream *response = request->beginResponseStream("application/json");
