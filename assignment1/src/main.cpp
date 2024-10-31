@@ -107,7 +107,13 @@ void setup() {
 
   // Load and verify data from SPIFFS
   DataPointHeader header;
-  std::vector<DataPoint> loadedData = loadDataPoints(path, header);
+  std::vector<DataPoint> loadedData;
+  if (!loadDataPoints(path, header, loadedData)) {
+      Serial.println("Failed to load sample data");
+      return;
+  } else {
+      Serial.printf("Loaded %d sample data points\n", loadedData.size());
+  }
 
   // Display loaded data and compare to sample
   bool dataMatches = true;

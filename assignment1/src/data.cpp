@@ -56,12 +56,14 @@ void saveDataPoints(const char* path, const std::vector<DataPoint>& data) {
     Serial.printf("Safely wrote %d data points with checksum 0x%08X to file\n", data.size(), checksum);
 }
 
-std::vector<DataPoint> loadDataPoints(const char* path, DataPointHeader& header) {
-    std::vector<DataPoint> data;
+//Returns 1 on success, 0 on failure
+int loadDataPoints(const char* path, DataPointHeader& header, std::vector<DataPoint>& data) {
+    data.clear(); // Clear existing data
+
     File file = SPIFFS.open(path, FILE_READ);
     if (!file) {
         Serial.println("Failed to open file for reading");
-        return data;
+        return 0;
     }
 
     // Read DataPointHeader
@@ -72,7 +74,7 @@ std::vector<DataPoint> loadDataPoints(const char* path, DataPointHeader& header)
     if (header.version != 1) {
         Serial.println("Unsupported file version");
         file.close();
-        return data;
+        return 0;
     }
 
     // Read each data point
@@ -119,7 +121,7 @@ std::vector<DataPoint> loadDataPoints(const char* path, DataPointHeader& header)
         Serial.printf("Checksum verified: 0x%08X\n", calculatedChecksum);
     }
 
-    return data;
+    return 1;
 }
 
 // Helper function to get the current timestamp as a String
@@ -148,19 +150,26 @@ void loadHistoricalData() {
 
     // Load 5-minute data
     Serial.println("Loading 5-minute data...");
-    temperatureData5Min = loadDataPoints("/data_5min.bin", header);
-    Serial.printf("Loaded %d 5-minute data points\n", temperatureData5Min.size());
-
+    if (!loadDataPoints("/data_5min.bin", header, temperatureData5Min)) {
+        Serial.println("Failed to load 5-minute data");
+    } else {
+        Serial.printf("Loaded %d 5-minute data points\n", temperatureData5Min.size());
+    }
     // Load hourly data
     Serial.println("Loading hourly data...");
-    temperatureDataHourly = loadDataPoints("/data_hourly.bin", header);
-    Serial.printf("Loaded %d hourly data points\n", temperatureDataHourly.size());
+    if (!loadDataPoints("/data_hourly.bin", header, temperatureData5Min)) {
+        Serial.println("Failed to load hourly data");
+    } else {
+        Serial.printf("Loaded %d hourly data points\n", temperatureDataHourly.size());
+    }
 
     // Load 6-hour data
     Serial.println("Loading 6-hour data...");
-    temperatureData6Hour = loadDataPoints("/data_6hour.bin", header);
-    Serial.printf("Loaded %d 6-hour data points\n", temperatureData6Hour.size());
-
+    if (!loadDataPoints("/data_6hour.bin", header, temperatureData6Hour)) {
+        Serial.println("Failed to load 6-hour data");
+    } else {
+        Serial.printf("Loaded %d 6-hour data points\n", temperatureData6Hour.size());
+    }
 }
 
 void rotateAndSave5MinuteData() {

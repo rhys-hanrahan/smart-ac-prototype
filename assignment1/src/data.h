@@ -37,7 +37,7 @@ const size_t MAX_6HOUR_POINTS = 1460;  // 1 year
 
 // Data point load/save
 void saveDataPoints(const char* path, const std::vector<DataPoint>& data);
-std::vector<DataPoint> loadDataPoints(const char* path, DataPointHeader& header);
+int loadDataPoints(const char* path, DataPointHeader& header, std::vector<DataPoint>& data);
 void loadHistoricalData();
 
 // Function declarations
