@@ -264,6 +264,28 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
 
   });
 
+    server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request) {
+        Serial.println("[HTTP] GET /download");
+        if (!request->hasParam("file")) {
+            request->send(400, "text/plain", "File parameter missing");
+            return;
+        }
+
+        String filename = request->getParam("file")->value();
+        String filePath = "/" + filename;
+        Serial.printf("[HTTP] GET /download - Requested file: %s\n", filePath.c_str());
+
+        // Check if file exists
+        if (!SPIFFS.exists(filePath)) {
+            Serial.printf("[HTTP] GET /download - File not found: %s\n", filePath.c_str());
+            request->send(404, "text/plain", "File not found");
+            return;
+        }
+
+        // Send the file to the client
+        request->send(SPIFFS, filePath, "application/octet-stream", true);
+    });
+
 
   server.onNotFound([](AsyncWebServerRequest *request){
     request->send(404, "text/plain", "404: Not Found");

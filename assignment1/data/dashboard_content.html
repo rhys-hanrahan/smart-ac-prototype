@@ -25,7 +25,19 @@
     <div class="tab-content" id="dataTabsContent">
       <div class="tab-pane fade show active" id="day" role="tabpanel" aria-labelledby="day-tab">
         <h4>Temperature & Humidity - Day</h4>
-        <canvas id="tempHumidityChart" width="400" height="200"></canvas>
+        <canvas id="tempHumidityChartDay" width="400" height="200"></canvas>
+      </div>
+      <div class="tab-pane fade" id="week" role="tabpanel" aria-labelledby="week-tab">
+        <h4>Temperature & Humidity - Week</h4>
+        <canvas id="tempHumidityChartWeek" width="400" height="200"></canvas>
+      </div>
+      <div class="tab-pane fade" id="month" role="tabpanel" aria-labelledby="month-tab">
+        <h4>Temperature & Humidity - Month</h4>
+        <canvas id="tempHumidityChartMonth" width="400" height="200"></canvas>
+      </div>
+      <div class="tab-pane fade" id="year" role="tabpanel" aria-labelledby="year-tab">
+        <h4>Temperature & Humidity - Year</h4>
+        <canvas id="tempHumidityChartYear" width="400" height="200"></canvas>
       </div>
     </div>
 
@@ -50,3 +62,4 @@
 
   <script src="/js/dashboard.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/js/bootstrap.bundle.min.js"></script>
