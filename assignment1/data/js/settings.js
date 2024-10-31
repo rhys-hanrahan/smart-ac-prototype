@@ -42,8 +42,6 @@ async function loadConfigData(token) {
     document.getElementById('wifi-password').value = config.wifi.password || '';
     document.getElementById('login-user').value = config.login.user || '';
     document.getElementById('login-password').value = config.login.password || '';
-    document.getElementById('thingspeak-api-key').value = config.thingspeak.api_key || '';
-    document.getElementById('thingspeak-channel-id').value = config.thingspeak.channel_id || '';
   } catch (error) {
     console.error(error);
     alert("Failed to load settings. Please try again.");
@@ -59,10 +57,6 @@ async function saveConfigData(token) {
     login: {
       user: document.getElementById('login-user').value,
       password: document.getElementById('login-password').value
-    },
-    thingspeak: {
-      api_key: document.getElementById('thingspeak-api-key').value,
-      channel_id: parseInt(document.getElementById('thingspeak-channel-id').value, 10)
     }
   };
 
@@ -71,9 +65,9 @@ async function saveConfigData(token) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify(configData)
+      body: 'config=' + encodeURIComponent(JSON.stringify(configData)) //https://stackoverflow.com/a/42312303 - webserver expects config param.
     });
 
     if (!response.ok) {

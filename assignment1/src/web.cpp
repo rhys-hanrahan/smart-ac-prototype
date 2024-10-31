@@ -354,12 +354,15 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
             return;
         }
 
+        Serial.println("[HTTP] POST /api/config");
         // Handle the new configuration JSON from the client
         if (request->hasParam("config", true)) {
             String newConfig = request->getParam("config", true)->value();
+            Serial.printf("[HTTP] POST /api/config - New config: %s\n", newConfig.c_str());
             updateConfig(newConfig); // Update in-memory and save to SPIFFS
             request->send(200, "application/json", "{\"message\":\"Config updated successfully\"}");
         } else {
+            Serial.println("[HTTP] POST /api/config - Missing config parameter");
             request->send(400, "application/json", "{\"error\":\"Missing config parameter\"}");
         }
     });
