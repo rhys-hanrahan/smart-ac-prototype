@@ -1,5 +1,3 @@
-// dashboard.js
-
 document.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem('jwtToken');
   if (!token) {
@@ -37,7 +35,11 @@ async function fetchDataAndUpdate(token, period) {
   if (response.ok) {
     const data = await response.json();
     document.getElementById('message').innerText = data.message;
-    updateChart(data.temperature, data.humidity, data.timestamps);
+
+    // Adjust timestamps based on the selected period
+    const adjustedTimestamps = adjustTimestamps(data.timestamps, period);
+
+    updateChart(period, data.temperature, data.humidity, adjustedTimestamps);
     updateActivityLog(data.activityLog);
   } else {
     localStorage.removeItem('jwtToken');
@@ -45,11 +47,30 @@ async function fetchDataAndUpdate(token, period) {
   }
 }
 
-let tempHumidityChart;
+// Adjust timestamps based on the selected period and corresponding intervals
+function adjustTimestamps(timestamps, period) {
+  switch (period) {
+    case 'day': // 5-minute intervals
+      return timestamps.map(ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    case 'week': // Hourly intervals
+      return timestamps.map(ts => new Date(ts).toLocaleString([], { weekday: 'short', hour: '2-digit' }));
+    case 'month': // 6-hour intervals
+      return timestamps.map(ts => new Date(ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit' }));
+    case 'year': // 6-hour intervals
+      return timestamps.map(ts => new Date(ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit' }));
+    default:
+      return timestamps;
+  }
+}
 
-function setupChart(temperatureData, humidityData, timestamps) {
-  const ctx = document.getElementById('tempHumidityChart').getContext('2d');
-  tempHumidityChart = new Chart(ctx, {
+
+// Object to hold chart instances for each period
+const chartInstances = {};
+
+// Function to initialize a chart for a specific period if it doesn't exist
+function setupChart(period, temperatureData, humidityData, timestamps) {
+  const ctx = document.getElementById(`tempHumidityChart${capitalize(period)}`).getContext('2d');
+  chartInstances[period] = new Chart(ctx, {
     type: 'line',
     data: {
       labels: timestamps,
@@ -100,18 +121,26 @@ function setupChart(temperatureData, humidityData, timestamps) {
   });
 }
 
-function updateChart(temperatureData, humidityData, timestamps) {
-  if (!tempHumidityChart) {
-    setupChart(temperatureData, humidityData, timestamps);
+// Function to update an existing chart instance with new data
+function updateChart(period, temperatureData, humidityData, timestamps) {
+  if (!chartInstances[period]) {
+    setupChart(period, temperatureData, humidityData, timestamps);
     return;
   }
-  tempHumidityChart.data.labels = timestamps;
-  tempHumidityChart.data.datasets[0].data = temperatureData;
-  tempHumidityChart.data.datasets[1].data = humidityData;
-  tempHumidityChart.update();
+
+  const chart = chartInstances[period];
+  chart.data.labels = timestamps;
+  chart.data.datasets[0].data = temperatureData;
+  chart.data.datasets[1].data = humidityData;
+  chart.update();
 }
 
+// Function to update the activity log table
 function updateActivityLog(activityLog) {
+  if (!activityLog || activityLog.length === 0) {
+    document.getElementById('activityLog').innerHTML = '<tr><td colspan="3">No activity to display</td></tr>';
+    return;
+  }
   const activityLogTable = document.getElementById('activityLog');
   activityLogTable.innerHTML = '';
   activityLog.forEach(logEntry => {
@@ -119,4 +148,9 @@ function updateActivityLog(activityLog) {
     row.innerHTML = `<td>${logEntry.timestamp}</td><td>${logEntry.action}</td><td>${logEntry.details}</td>`;
     activityLogTable.appendChild(row);
   });
+}
+
+// Helper function to capitalize the first letter of a string
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
