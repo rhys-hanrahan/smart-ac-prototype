@@ -32,6 +32,8 @@ DHT dht(DHTPIN, DHTTYPE);
 const uint16_t kIrLed = IRTXPIN;  // ESP8266 GPIO pin to use. Recommended: 4 (D2). NOTE: ESP32 doesnt use the same pinout.
 IRDaikinESP ac(kIrLed);  // Set the GPIO to be used to sending the message
 
+IRsend irsend(kIrLed); // IR transmitter
+
 // Store individual 15-second readings temporarily
 std::vector<float> tempBuffer;
 std::vector<float> humBuffer;
@@ -418,6 +420,11 @@ void loop() {
     if ((now - lastIRSendTime) > irInterval) {
         lastIRSendTime = now;
 
+        //https://forum.arduino.cc/t/ir-remote-tranmission-for-sony-tv-help-with-code/275395
+        irsend.sendSony(0xA90, 12); // Send Sony power toggle command
+        Serial.println("Sent Sony Power Toggle");
+
+
         // Send IR signal to AC
         ac.on();
         ac.setFan(1);
@@ -426,7 +433,7 @@ void loop() {
         ac.setSwingVertical(false);
         ac.setSwingHorizontal(false);
 
-        //Serial.println("Send IR Data...");
+        Serial.println("Sending IR Data...");
         //Serial.println(ac.toString());
 
         // Now send the IR signal.
