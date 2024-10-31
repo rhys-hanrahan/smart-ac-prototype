@@ -47,33 +47,50 @@ function padDataPoints(data, timestamps, intervalInMs) {
   const now = Date.now();
   const paddedData = [];
   const paddedTimestamps = [];
+
+  console.log('Interval in ms:', intervalInMs);
   
   if (data.length === 0 || timestamps.length === 0) return { paddedData, paddedTimestamps };
 
   // Parse the first timestamp to determine the starting point
   let currentTime = new Date(timestamps[0].replace(" +00:00", "")).getTime();
+  console.log('Curent time raw timestamp:', timestamps[0]);
+  console.log('Current time - first timestamp:', currentTime, new Date(currentTime).toUTCString());
 
   data.forEach((value, index) => {
     const pointTime = new Date(timestamps[index].replace(" +00:00", "")).getTime();
+    console.log('Current point raw timestamp:', timestamps[index]);
+    console.log('Point time of current point:', pointTime, new Date(pointTime).toUTCString());
 
     // Insert placeholder data points for any gaps
+    console.log('Fill in missing data points');
     while (currentTime < pointTime) {
       paddedData.push(null); // Null as a placeholder for missing data
-      paddedTimestamps.push(new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00'));
+      console.log('Current time:', currentTime, new Date(currentTime).toUTCString());
+      const timestamp = new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00');
+      console.log('Padded timestamp:', timestamp);
+      paddedTimestamps.push(timestamp);
       currentTime += intervalInMs;
+      console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
     }
 
     // Add the actual data point and timestamp
     paddedData.push(value);
+    console.log('Pushing actual timestamp:', timestamps[index]);
     paddedTimestamps.push(timestamps[index]);
     currentTime += intervalInMs;
+    console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
   });
 
   // Fill in any remaining points up to the current time
+  console.log('Fill in remaining data points till now. Now is: ', now);
   while (currentTime < now) {
     paddedData.push(null);
-    paddedTimestamps.push(new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00'));
+    const timestamp = new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00');
+    paddedTimestamps.push(timestamp);
+    console.log('Padded timestamp:', timestamp);
     currentTime += intervalInMs;
+    console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
   }
 
   return { paddedData, paddedTimestamps };
@@ -99,19 +116,14 @@ async function fetchDataAndUpdate(token, period) {
       intervalInMs = 6 * 60 * 60 * 1000; // 6 hours
     }
 
-    // Pad data points and timestamps for consistent intervals
+    // Pad data points for consistent intervals
     const { paddedData: paddedTemperatureData, paddedTimestamps } = padDataPoints(data.temperature, data.timestamps, intervalInMs);
     const { paddedData: paddedHumidityData } = padDataPoints(data.humidity, data.timestamps, intervalInMs);
 
     // Adjust timestamps for display
     const adjustedTimestamps = adjustTimestamps(paddedTimestamps, period);
 
-    updateChart(
-      period,
-      paddedTemperatureData,
-      paddedHumidityData,
-      adjustedTimestamps
-    );
+    updateChart(period, paddedTemperatureData, paddedHumidityData, adjustedTimestamps);
     
     updateActivityLog(data.activityLog);
   } else {
@@ -124,13 +136,13 @@ async function fetchDataAndUpdate(token, period) {
 function adjustTimestamps(timestamps, period) {
   switch (period) {
     case 'day': // 5-minute intervals
-      return timestamps.map(ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      return timestamps.map(ts => new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
     case 'week': // Hourly intervals
-      return timestamps.map(ts => new Date(ts).toLocaleString([], { weekday: 'short', hour: '2-digit' }));
+      return timestamps.map(ts => new Date(ts).toLocaleString('en-US', { weekday: 'short', hour: '2-digit', hour12: true }));
     case 'month': // 6-hour intervals
-      return timestamps.map(ts => new Date(ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit' }));
+      return timestamps.map(ts => new Date(ts).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', hour12: true }));
     case 'year': // 6-hour intervals
-      return timestamps.map(ts => new Date(ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit' }));
+      return timestamps.map(ts => new Date(ts).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', hour12: true }));
     default:
       return timestamps;
   }
