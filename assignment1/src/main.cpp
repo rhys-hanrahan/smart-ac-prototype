@@ -18,6 +18,7 @@
 #include <data.h>
 #include <config.h>
 #include <numeric>
+#include <rules.h>
 
 #define LEDPIN 2
 #define IRTXPIN 5 //IR Transmitter pin
@@ -227,6 +228,8 @@ void setup() {
   int utcOffsetSeconds = difftime(mktime(&timeinfo), mktime(utcTime));
   Serial.printf("UTC Offset: %d seconds\n", utcOffsetSeconds);
   Serial.printf("DST: %s\n", (timeinfo.tm_isdst > 0) ? "Active" : "Inactive");
+  Serial.printf("Season: %s\n", getCurrentSeason().c_str());
+  Serial.printf("Hemisphere: %s\n", determineHemisphere().c_str());
 
   Serial.println("SmartAC Remote is ready");
 }

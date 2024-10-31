@@ -38,10 +38,13 @@ int getUTCOffset(int month, int day) {
     timeinfo.tm_isdst = -1;         // Let the system determine if DST is in effect
 
     rawtime = mktime(&timeinfo);    // Convert to time_t
-    struct tm* localTime = localtime(&rawtime); // Get local time info
+    struct tm *localTime = localtime(&rawtime); // Get local time info
+    struct tm *utcTime = gmtime(&rawtime);   // UTC time
 
-    // Calculate UTC offset (in seconds)
-    return localTime->tm_gmtoff;    // ESP32-compatible timezone offset
+
+    // Calculate the offset in seconds
+    int utcOffset = (mktime(localTime) - mktime(utcTime));
+    return utcOffset; // UTC offset in seconds
 }
 
 
