@@ -8,6 +8,8 @@ void loadConfig();
 void saveConfig();
 void updateConfig(const String& json);
 void applyJsonToConfig(const DynamicJsonDocument& doc);
+String getPosixTzFromTimezone(String timezone);
+
 DynamicJsonDocument getConfigJson();
 
 struct Config {
@@ -15,7 +17,9 @@ struct Config {
   String wifi_password; //Wifi Password
   String web_username; //Web username
   String web_userpass; //Web password
-  float tempSchedule[7][24]; // Store temperature settings by day and hour
+  String jwt_secret; //JWT Secret
+  String timezone; //Timezone
+  String posix_tz; //Timezone as per https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 };
 
 // Extern declarations

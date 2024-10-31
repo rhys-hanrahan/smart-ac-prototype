@@ -35,6 +35,33 @@
     </div>
   </div>
 
+  <div class="card mt-4">
+    <div class="card-header">
+      <h3>Timezone</h3>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="timezone" class="form-label">Timezone</label>
+        <select class="form-select" id="timezone" name="timezone" required>
+            <option value="Australia/Sydney">Australia/Sydney</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="Asia/Tokyo">Asia/Tokyo</option>
+            <option value="Europe/London">Europe/London</option>
+        </select>
+      </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header">
+        <h3>JWT Secret</h3>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="jwt-secret" class="form-label">JWT Secret</label>
+        <input type="password" class="form-control" id="jwt-secret" name="jwt-secret" required>
+      </div>
+  </div>
+
   <button type="submit" class="btn btn-primary mt-4">Save Settings</button>
 </form>
 

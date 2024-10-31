@@ -200,6 +200,8 @@ void setup() {
   }
 
   // Configure time with NTP
+  // Timezone for Australia/Sydney: https://github.com/nayarsystems/posix_tz_db/blob/1f0cc11d79f7384afcf6acd860d8565165d940db/zones.csv#L317
+  // AEST-10AEDT,M10.1.0,M4.1.0/3
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");  // Adjust time offset if needed (e.g., UTC offset)
 
   // Wait for time to be set
@@ -209,7 +211,16 @@ void setup() {
       return;
   }
   Serial.println("Time initialized with NTP");
-  Serial.println(&timeinfo, "Time is: %A, %B %d %Y %H:%M:%S");
+
+  Serial.println(&timeinfo, "UTC Time is: %A, %B %d %Y %H:%M:%S zone %Z (%z)");
+  Serial.println("Setting timezone to " + config.timezone);
+  Serial.println("Setting POSIX timezone to " + config.posix_tz);
+  //Now we can set timezone
+  //https://randomnerdtutorials.com/esp32-ntp-timezones-daylight-saving/
+  setenv("TZ", config.posix_tz.c_str(), 1);
+  tzset();
+  Serial.println(&timeinfo, "Local Time is: %A, %B %d %Y %H:%M:%S zone %Z (%z)");
+  Serial.println("SmartAC Remote is ready");
 }
 
 void loop() {

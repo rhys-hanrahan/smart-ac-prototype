@@ -42,6 +42,8 @@ async function loadConfigData(token) {
     document.getElementById('wifi-password').value = config.wifi.password || '';
     document.getElementById('login-user').value = config.login.user || '';
     document.getElementById('login-password').value = config.login.password || '';
+    document.getElementById('jwt-secret').value = config.jwtSecret || '';
+    document.getElementById('timezone').value = config.timezone || '';
   } catch (error) {
     console.error(error);
     alert("Failed to load settings. Please try again.");
@@ -57,7 +59,9 @@ async function saveConfigData(token) {
     login: {
       user: document.getElementById('login-user').value,
       password: document.getElementById('login-password').value
-    }
+    },
+    jwtSecret: document.getElementById('jwt-secret').value,
+    timezone: document.getElementById('timezone').value
   };
 
   try {
