@@ -8,6 +8,7 @@
 #include <data.h>
 #include <config.h>
 #include <web.h>
+#include <rules.h>
 
 //Webserver
 AsyncWebServer server(80); // Web server
@@ -365,6 +366,58 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
             Serial.println("[HTTP] POST /api/config - Missing config parameter");
             request->send(400, "application/json", "{\"error\":\"Missing config parameter\"}");
         }
+    });
+
+    server.on("/api/rules", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (!request->hasHeader("Authorization")) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        String authHeader = request->header("Authorization");
+        String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : "";
+        if (!isValidJWTToken(token)) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        DynamicJsonDocument rulesJson(4096);
+        JsonArray rulesArray = rulesJson.to<JsonArray>();
+        saveRulesToJson(rulesArray);
+
+        String response;
+        serializeJson(rulesJson, response);
+        request->send(200, "application/json", response);
+    });
+
+    server.on("/api/rules", HTTP_POST, [](AsyncWebServerRequest *request) {
+        if (!request->hasHeader("Authorization")) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        String authHeader = request->header("Authorization");
+        String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : "";
+        if (!isValidJWTToken(token)) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        if (!request->hasParam("rules", true)) {
+            request->send(400, "application/json", "{\"error\":\"Missing rules parameter\"}");
+            return;
+        }
+
+        String rulesData = request->getParam("rules", true)->value();
+        DynamicJsonDocument doc(4096);
+        if (deserializeJson(doc, rulesData)) {
+            request->send(400, "application/json", "{\"error\":\"Failed to parse JSON\"}");
+            return;
+        }
+
+        loadRulesFromJson(doc.as<JsonArray>());
+        saveRules();
+        request->send(200, "application/json", "{\"message\":\"Rules updated successfully\"}");
     });
 
 

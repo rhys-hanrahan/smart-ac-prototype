@@ -77,9 +77,13 @@ bool isDSTActive(int month, int day);
 
 // Functions to manage rules and AC state
 void loadRules();
-ConditionGroup loadConditionGroup(JsonObject &groupObj);
+ConditionGroup loadConditionGroup(const JsonObject &groupObj);
 void saveRules();
 void saveConditionGroup(const ConditionGroup &group, JsonObject &groupObj);
+Action loadAction(const JsonObject &actionObj);
+void saveAction(const Action &action, const JsonObject &actionObj);
+bool loadRulesFromJson(const JsonArray &rulesArray);
+void saveRulesToJson(JsonArray &rulesArray);
 bool isTimeframeValid(const Timeframe& timeframe);
 bool areConditionsMet(const std::vector<Condition>& conditions, const ACState& ac_state);
 bool isSeasonValid(const std::vector<String>& seasons);

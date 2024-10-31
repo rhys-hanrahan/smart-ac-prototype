@@ -236,7 +236,7 @@ void saveRules() {
 }
 
 // Helper to load a ConditionGroup from JSON
-ConditionGroup loadConditionGroup(JsonObject &groupObj) {
+ConditionGroup loadConditionGroup(const JsonObject &groupObj) {
     ConditionGroup group;
     group.operator_ = groupObj["operator"].as<String>();
 
@@ -279,6 +279,85 @@ void saveConditionGroup(const ConditionGroup &group, JsonObject &groupObj) {
     }
 }
 
+Action loadAction(const JsonObject &actionObj) {
+    Action action;
+    action.type = actionObj["type"].as<String>();
+    action.target_temp = actionObj["target_temp"].as<float>();
+    action.increment_value = actionObj["increment_value"].as<float>();
+
+    JsonObject repeatIfObj = actionObj["repeat_if"];
+    action.repeat_if.field = repeatIfObj["field"].as<String>();
+    action.repeat_if.operator_ = repeatIfObj["operator"].as<String>();
+    action.repeat_if.value = repeatIfObj["value"].as<float>();
+
+    JsonObject conditionGroupObj = actionObj["condition"];
+    action.condition = loadConditionGroup(conditionGroupObj);
+
+    return action;
+}
+
+void saveAction(const Action &action, const JsonObject &actionObj) {
+    actionObj["type"] = action.type;
+    actionObj["target_temp"] = action.target_temp;
+    actionObj["increment_value"] = action.increment_value;
+
+    JsonObject repeatIfObj = actionObj.createNestedObject("repeat_if");
+    repeatIfObj["field"] = action.repeat_if.field;
+    repeatIfObj["operator"] = action.repeat_if.operator_;
+    repeatIfObj["value"] = action.repeat_if.value;
+
+    JsonObject conditionGroupObj = actionObj.createNestedObject("condition");
+    saveConditionGroup(action.condition, conditionGroupObj);
+}
+
+// Load rules from JSON file or API request
+bool loadRulesFromJson(const JsonArray &rulesArray) {
+    rules.clear();
+    for (JsonObject ruleObj : rulesArray) {
+        RuleSet rule;
+        rule.name = ruleObj["name"].as<String>();
+        rule.description = ruleObj["description"].as<String>();
+
+        JsonObject timeframe = ruleObj["timeframe"];
+        for (JsonVariant day : timeframe["days"].as<JsonArray>()) rule.timeframe.days.push_back(day.as<String>());
+        rule.timeframe.start_time = timeframe["start_time"].as<String>();
+        rule.timeframe.end_time = timeframe["end_time"].as<String>();
+        for (JsonVariant season : timeframe["seasons"].as<JsonArray>()) rule.timeframe.seasons.push_back(season.as<String>());
+
+        rule.conditions = loadConditionGroup(ruleObj["conditions"]);
+
+        for (JsonObject actionObj : ruleObj["actions"].as<JsonArray>()) {
+            rule.actions.push_back(loadAction(actionObj));
+        }
+        rules.push_back(rule);
+    }
+    return true;
+}
+
+// Save rules to JSON document
+void saveRulesToJson(JsonArray &rulesArray) {
+    for (const RuleSet &rule : rules) {
+        JsonObject ruleObj = rulesArray.createNestedObject();
+        ruleObj["name"] = rule.name;
+        ruleObj["description"] = rule.description;
+
+        JsonObject timeframe = ruleObj.createNestedObject("timeframe");
+        JsonArray days = timeframe.createNestedArray("days");
+        for (const String &day : rule.timeframe.days) days.add(day);
+        timeframe["start_time"] = rule.timeframe.start_time;
+        timeframe["end_time"] = rule.timeframe.end_time;
+        JsonArray seasons = timeframe.createNestedArray("seasons");
+        for (const String &season : rule.timeframe.seasons) seasons.add(season);
+
+        JsonObject conditionsObj = ruleObj.createNestedObject("conditions");
+        saveConditionGroup(rule.conditions, conditionsObj);
+
+        JsonArray actions = ruleObj.createNestedArray("actions");
+        for (const Action &action : rule.actions) {
+            saveAction(action, actions.createNestedObject());
+        }
+    }
+}
 
 // Function to check if the current time is within a rule's timeframe
 // Works off local time only.
