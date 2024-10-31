@@ -1,2 +1,57 @@
 <!-- settings_content.html -->
-<p>Settings page content goes here. Configure your Smart AC settings.</p>
+<h2>Smart AC Settings</h2>
+<p>Configure your Smart AC settings below.</p>
+
+<form id="settingsForm">
+  <div class="card mt-4">
+    <div class="card-header">
+      <h3>WiFi Settings</h3>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="wifi-ssid" class="form-label">SSID</label>
+        <input type="text" class="form-control" id="wifi-ssid" name="wifi-ssid" required>
+      </div>
+      <div class="mb-3">
+        <label for="wifi-password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="wifi-password" name="wifi-password" required>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header">
+      <h3>Login Settings</h3>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="login-user" class="form-label">Username</label>
+        <input type="text" class="form-control" id="login-user" name="login-user" required>
+      </div>
+      <div class="mb-3">
+        <label for="login-password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="login-password" name="login-password" required>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header">
+      <h3>ThingSpeak Settings</h3>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="thingspeak-api-key" class="form-label">API Key</label>
+        <input type="text" class="form-control" id="thingspeak-api-key" name="thingspeak-api-key" required>
+      </div>
+      <div class="mb-3">
+        <label for="thingspeak-channel-id" class="form-label">Channel ID</label>
+        <input type="number" class="form-control" id="thingspeak-channel-id" name="thingspeak-channel-id" required>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary mt-4">Save Settings</button>
+</form>
+
+<script src="/js/settings.js"></script>

@@ -1,7 +1,7 @@
 let currentTab = 'day'; // Default to 'day' on page load
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const selectedTab = window.location.hash.substring(1);
+
   const token = localStorage.getItem('jwtToken');
   if (!token) {
     window.location.href = '/login';
@@ -48,49 +48,49 @@ function padDataPoints(data, timestamps, intervalInMs) {
   const paddedData = [];
   const paddedTimestamps = [];
 
-  console.log('Interval in ms:', intervalInMs);
+  //console.log('Interval in ms:', intervalInMs);
   
   if (data.length === 0 || timestamps.length === 0) return { paddedData, paddedTimestamps };
 
   // Parse the first timestamp to determine the starting point
   let currentTime = Date.parse(timestamps[0].replace(" +00:00", "Z")); // Replace "+00:00" with "Z" to indicate UTC
-  console.log('Curent time raw timestamp:', timestamps[0]);
-  console.log('Current time - first timestamp:', currentTime, new Date(currentTime).toUTCString());
+  //console.log('Curent time raw timestamp:', timestamps[0]);
+  //console.log('Current time - first timestamp:', currentTime, new Date(currentTime).toUTCString());
 
   data.forEach((value, index) => {
     const pointTime = Date.parse(timestamps[index].replace(" +00:00", "Z"));
-    console.log('Current point raw timestamp:', timestamps[index]);
-    console.log('Point time of current point:', pointTime, new Date(pointTime).toUTCString());
+    //console.log('Current point raw timestamp:', timestamps[index]);
+    //console.log('Point time of current point:', pointTime, new Date(pointTime).toUTCString());
 
     // Insert placeholder data points for any gaps
-    console.log('Fill in missing data points');
+    //console.log('Fill in missing data points');
     while (currentTime < pointTime) {
       paddedData.push(null); // Null as a placeholder for missing data
-      console.log('Current time:', currentTime, new Date(currentTime).toUTCString());
+      //console.log('Current time:', currentTime, new Date(currentTime).toUTCString());
       const timestamp = new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00');
-      console.log('Padded timestamp:', timestamp);
+      //console.log('Padded timestamp:', timestamp);
       paddedTimestamps.push(timestamp);
       currentTime += intervalInMs;
-      console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
+      //console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
     }
 
     // Add the actual data point and timestamp
     paddedData.push(value);
-    console.log('Pushing actual timestamp:', timestamps[index]);
+    //console.log('Pushing actual timestamp:', timestamps[index]);
     paddedTimestamps.push(timestamps[index]);
     currentTime += intervalInMs;
-    console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
+    //console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
   });
 
   // Fill in any remaining points up to the current time
-  console.log('Fill in remaining data points till now. Now is: ', now);
+  //console.log('Fill in remaining data points till now. Now is: ', now);
   while (currentTime < now) {
     paddedData.push(null);
     const timestamp = new Date(currentTime).toISOString().replace('T', ' ').replace('Z', ' +00:00');
     paddedTimestamps.push(timestamp);
-    console.log('Padded timestamp:', timestamp);
+    //console.log('Padded timestamp:', timestamp);
     currentTime += intervalInMs;
-    console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
+    //console.log('Current time after incrementing it by interval in ms:', currentTime, new Date(currentTime).toUTCString());
   }
 
   return { paddedData, paddedTimestamps };

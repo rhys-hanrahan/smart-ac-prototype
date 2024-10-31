@@ -121,14 +121,6 @@ void setupWebServer() {
   server.serveStatic("/css", SPIFFS, "/css");
   server.serveStatic("/js", SPIFFS, "/js");
 
-  server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // Send configuration data to the client
-    DynamicJsonDocument doc = getConfigJson();
-    String output;
-    serializeJson(doc, output);
-    request->send(200, "application/json", output);
-  });
-
   server.on("/login", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("username", true) && request->hasParam("password", true)) {
       String username = request->getParam("username", true)->value();
@@ -271,6 +263,30 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
             return;
         }
 
+        // Check if the Authorization header is present
+        if (!request->hasHeader("Authorization")) {
+            Serial.println("[HTTP] GET /download - No Authorization header");
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        // Get the Authorization header and verify the token format
+        String authHeader = request->header("Authorization");
+        if (!authHeader.startsWith("Bearer ")) {
+            Serial.println("[HTTP] GET /download - Invalid token format");
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        // Extract and validate the token
+        String token = authHeader.substring(7);
+        if (!isValidJWTToken(token)) {
+            Serial.println("[HTTP] GET /download - Invalid token");
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+
         String filename = request->getParam("file")->value();
         String filePath = "/" + filename;
         Serial.printf("[HTTP] GET /download - Requested file: %s\n", filePath.c_str());
@@ -284,6 +300,68 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
 
         // Send the file to the client
         request->send(SPIFFS, filePath, "application/octet-stream", true);
+    });
+
+    // GET request to retrieve the configuration
+    server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) {
+        Serial.println("[HTTP] GET /api/config");
+
+        // Check if the Authorization header is present
+        if (!request->hasHeader("Authorization")) {
+            Serial.println("[HTTP] GET /api/config - No Authorization header");
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        // Get the Authorization header and verify the token format
+        String authHeader = request->header("Authorization");
+        if (!authHeader.startsWith("Bearer ")) {
+            Serial.println("[HTTP] GET /api/config - Invalid token format");
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        // Extract and validate the token
+        String token = authHeader.substring(7);
+        if (!isValidJWTToken(token)) {
+            Serial.println("[HTTP] GET /api/config - Invalid token");
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        // Retrieve the current configuration as JSON
+        DynamicJsonDocument configJson = getConfigJson();
+
+        // Serialize and send the JSON response
+        String response;
+        serializeJson(configJson, response);
+        request->send(200, "application/json", response);
+        Serial.println("[HTTP] GET /api/config - Configuration sent");
+    });
+
+
+    // POST request to save the configuration
+    server.on("/api/config", HTTP_POST, [](AsyncWebServerRequest *request) {
+        if (!request->hasHeader("Authorization")) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        String authHeader = request->header("Authorization");
+        String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : "";
+        if (!isValidJWTToken(token)) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
+
+        // Handle the new configuration JSON from the client
+        if (request->hasParam("config", true)) {
+            String newConfig = request->getParam("config", true)->value();
+            updateConfig(newConfig); // Update in-memory and save to SPIFFS
+            request->send(200, "application/json", "{\"message\":\"Config updated successfully\"}");
+        } else {
+            request->send(400, "application/json", "{\"error\":\"Missing config parameter\"}");
+        }
     });
 
 

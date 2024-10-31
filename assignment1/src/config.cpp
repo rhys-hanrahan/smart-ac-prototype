@@ -8,8 +8,7 @@ Config config = {
   .wifi_ssid = "your_ssid",
   .wifi_password = "your_password",
   .web_username = "admin",
-  .web_userpass = "admin123",
-  .tempSchedule = { {0.0} }  // Initialize all to 0.0 for simplicity
+  .web_userpass = "admin123"
 };
 
 // Define local WiFi SSID and password
@@ -21,8 +20,18 @@ IPAddress ap_local_IP(172, 23, 23, 1);
 IPAddress ap_gateway(172, 23, 23, 1);
 IPAddress ap_subnet(255, 255, 255, 0);
 
+void applyJsonToConfig(const DynamicJsonDocument& doc) {
+  // Apply JSON values to the in-memory config structure
+  config.web_username = doc["login"]["user"].as<String>();
+  config.web_userpass = doc["login"]["password"].as<String>();
+  config.wifi_ssid = doc["wifi"]["ssid"].as<String>();
+  config.wifi_password = doc["wifi"]["password"].as<String>();
+}
+
+
 void loadConfig() {
   
+  Serial.println("Loading configuration...");
   File configFile = SPIFFS.open("/config.json", "r");
   if (!configFile) {
     Serial.println("Failed to open config file");
@@ -44,21 +53,9 @@ void loadConfig() {
     Serial.println("Failed to parse config file");
     return;
   }
-
-  config.web_username = doc["login"]["user"].as<String>();
-  config.web_userpass = doc["login"]["password"].as<String>();
-  config.wifi_ssid = doc["wifi"]["ssid"].as<String>();
-  config.wifi_password = doc["wifi"]["password"].as<String>();
-  
-  JsonArray schedule = doc["tempSchedule"].as<JsonArray>();
-  for (int day = 0; day < 7; day++) {
-    JsonArray daySchedule = schedule[day].as<JsonArray>();
-    for (int hour = 0; hour < 24; hour++) {
-      config.tempSchedule[day][hour] = daySchedule[hour].as<float>();
-    }
-  }
-
+  applyJsonToConfig(doc);
   configFile.close();
+  Serial.println("Configuration loaded");
 }
 
 DynamicJsonDocument getConfigJson() {
@@ -68,14 +65,19 @@ DynamicJsonDocument getConfigJson() {
   doc["wifi"]["ssid"] = config.wifi_ssid;
   doc["wifi"]["password"] = config.wifi_password;
 
-  JsonArray schedule = doc.createNestedArray("tempSchedule");
-  for (int day = 0; day < 7; day++) {
-    JsonArray daySchedule = schedule.createNestedArray();
-    for (int hour = 0; hour < 24; hour++) {
-      daySchedule.add(config.tempSchedule[day][hour]);
-    }
-  }
   return doc;
+}
+
+void updateConfig(const String& json) {
+  Serial.println("Updating configuration...");
+  DynamicJsonDocument doc(1024);
+  DeserializationError error = deserializeJson(doc, json);
+  if (error) {
+    Serial.println("Failed to parse JSON");
+    return;
+  }
+  applyJsonToConfig(doc);
+  saveConfig();
 }
 
 // Save configuration to JSON file in SPIFFS
@@ -86,7 +88,7 @@ void saveConfig() {
     Serial.println("Failed to open config file for writing");
     return;
   }
-
+  Serial.println("Saving configuration...");
   DynamicJsonDocument doc = getConfigJson();
   serializeJson(doc, configFile);
   configFile.close();

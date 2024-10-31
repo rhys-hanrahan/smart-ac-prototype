@@ -6,6 +6,8 @@
 
 void loadConfig();
 void saveConfig();
+void updateConfig(const String& json);
+void applyJsonToConfig(const DynamicJsonDocument& doc);
 DynamicJsonDocument getConfigJson();
 
 struct Config {
