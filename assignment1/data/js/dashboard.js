@@ -1,4 +1,7 @@
+let currentTab = 'day'; // Default to 'day' on page load
+
 document.addEventListener('DOMContentLoaded', async () => {
+  const selectedTab = window.location.hash.substring(1);
   const token = localStorage.getItem('jwtToken');
   if (!token) {
     window.location.href = '/login';
@@ -16,14 +19,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Initialize chart for the 'Day' data by default
-  await fetchDataAndUpdate(token, 'day');
-  setInterval(() => fetchDataAndUpdate(token, 'day'), 20000);
+  await fetchDataAndUpdate(token, currentTab);
+  setInterval(() => fetchDataAndUpdate(token, currentTab), 20000);
 
   // Set up event listeners for each tab
-  document.getElementById('day-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'day'));
-  document.getElementById('week-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'week'));
-  document.getElementById('month-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'month'));
-  document.getElementById('year-tab').addEventListener('click', () => fetchDataAndUpdate(token, 'year'));
+  document.getElementById('day-tab').addEventListener('click', () => {
+    currentTab = 'day';
+    fetchDataAndUpdate(token, currentTab);
+  });
+  document.getElementById('week-tab').addEventListener('click', () => {
+    currentTab = 'week';
+    fetchDataAndUpdate(token, currentTab);
+  });
+  document.getElementById('month-tab').addEventListener('click', () => {
+    currentTab = 'month';
+    fetchDataAndUpdate(token, currentTab);
+  });
+  document.getElementById('year-tab').addEventListener('click', () => {
+    currentTab = 'year';
+    fetchDataAndUpdate(token, currentTab);
+  });
 });
 
 // Function to fetch data based on the selected time period and update the chart
