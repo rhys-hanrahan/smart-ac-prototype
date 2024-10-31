@@ -50,6 +50,14 @@ struct RuleSet {
 extern std::vector<RuleSet> rules;
 extern ACState ac_state;
 
+// Time functions
+String determineHemisphere();
+String getCurrentDay();
+String getCurrentTime();
+String getCurrentSeason();
+int getUTCOffset(int month, int day);
+bool isDSTActive(int month, int day);
+
 // Functions to manage rules and AC state
 void loadRules();
 void saveRules();

@@ -20,6 +20,8 @@ struct Config {
   String jwt_secret; //JWT Secret
   String timezone; //Timezone
   String posix_tz; //Timezone as per https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+  bool is_dst; //Daylight Saving Time
+  int utc_offset; //UTC Offset
 };
 
 // Extern declarations

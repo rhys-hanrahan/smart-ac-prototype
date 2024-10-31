@@ -24,17 +24,87 @@ String getCurrentTime() {
     return String(currentTime);
 }
 
+int getUTCOffset(int month, int day) {
+    struct tm timeinfo;
+    time_t rawtime;
+
+    // Set the desired date and time to the beginning of the specified day
+    timeinfo.tm_year = 2024 - 1900; // Use a leap year to avoid complications
+    timeinfo.tm_mon = month - 1;    // tm_mon is 0-based (0 = January)
+    timeinfo.tm_mday = day;
+    timeinfo.tm_hour = 0;
+    timeinfo.tm_min = 0;
+    timeinfo.tm_sec = 0;
+    timeinfo.tm_isdst = -1;         // Let the system determine if DST is in effect
+
+    rawtime = mktime(&timeinfo);    // Convert to time_t
+    struct tm* localTime = localtime(&rawtime); // Get local time info
+
+    // Calculate UTC offset (in seconds)
+    return localTime->tm_gmtoff;    // ESP32-compatible timezone offset
+}
+
+
+bool isDSTActive(int month, int day) {
+    struct tm timeinfo;
+    time_t rawtime;
+
+    // Set the desired date and time to the beginning of the specified day
+    timeinfo.tm_year = 2024 - 1900; // Use a leap year to avoid complications
+    timeinfo.tm_mon = month - 1;    // tm_mon is 0-based (0 = January)
+    timeinfo.tm_mday = day;
+    timeinfo.tm_hour = 0;
+    timeinfo.tm_min = 0;
+    timeinfo.tm_sec = 0;
+    timeinfo.tm_isdst = -1;         // Let the system determine if DST is in effect
+
+    rawtime = mktime(&timeinfo);
+    struct tm* localTime = localtime(&rawtime);
+
+    // tm_isdst > 0 indicates DST is active
+    return localTime->tm_isdst > 0;
+}
+
+// Use daylight savings to determine what hemisphere
+// the user is in - based on:
+// https://stackoverflow.com/a/65658594
+String determineHemisphere() {
+    int janOffset = getUTCOffset(1, 1);   // January 1st UTC offset
+    int julOffset = getUTCOffset(7, 1);   // July 1st UTC offset
+    bool janDST = isDSTActive(1, 1);      // Check if DST is active in January
+    bool julDST = isDSTActive(7, 1);      // Check if DST is active in July
+
+    // Determine hemisphere based on the offset difference
+    int diff = janOffset - julOffset;
+    if (diff > 0 || (julDST && !janDST)) return "Northern";
+    if (diff < 0 || (janDST && !julDST)) return "Southern";
+    return "Unknown"; // For regions near the equator or regions without DST
+}
+
 // Helper to get the current season based on month in AU
+// EDIT: Going to roughly guess based on UTC offset/DST
+// https://stackoverflow.com/a/65658594
 String getCurrentSeason() {
+    String hemisphere = determineHemisphere();
     time_t now = time(nullptr);
     struct tm *timeInfo = localtime(&now);
-    int month = timeInfo->tm_mon + 1; // tm_mon is months since January [0, 11]
+    int month = timeInfo->tm_mon + 1;
 
-    if (month >= 3 && month <= 5) return "autumn";  // March to May
-    if (month >= 6 && month <= 8) return "winter";  // June to August
-    if (month >= 9 && month <= 11) return "spring"; // September to November
-    return "summer"; // December to February
+    // Adjust based on hemisphere, default to Southern (Australia) if unknown
+    if (hemisphere == "Northern") {
+        if (month >= 3 && month <= 5) return "spring";
+        if (month >= 6 && month <= 8) return "summer";
+        if (month >= 9 && month <= 11) return "fall";
+        return "winter"; // December to February
+    } else {
+        // Southern Hemisphere or default (Australia)
+        if (month >= 3 && month <= 5) return "autumn";
+        if (month >= 6 && month <= 8) return "winter";
+        if (month >= 9 && month <= 11) return "spring";
+        return "summer"; // December to February
+    }
 }
+
 
 // Helper function to load rules from SPIFFS
 void loadRules() {

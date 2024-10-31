@@ -220,6 +220,14 @@ void setup() {
   setenv("TZ", config.posix_tz.c_str(), 1);
   tzset();
   Serial.println(&timeinfo, "Local Time is: %A, %B %d %Y %H:%M:%S zone %Z (%z)");
+
+  // Calculate UTC offset in seconds
+  time_t rawtime = mktime(&timeinfo);
+  struct tm *utcTime = gmtime(&rawtime);
+  int utcOffsetSeconds = difftime(mktime(&timeinfo), mktime(utcTime));
+  Serial.printf("UTC Offset: %d seconds\n", utcOffsetSeconds);
+  Serial.printf("DST: %s\n", (timeinfo.tm_isdst > 0) ? "Active" : "Inactive");
+
   Serial.println("SmartAC Remote is ready");
 }
 
