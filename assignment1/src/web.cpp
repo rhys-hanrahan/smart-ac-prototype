@@ -264,6 +264,7 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
             return;
         }
 
+/*
         // Check if the Authorization header is present
         if (!request->hasHeader("Authorization")) {
             Serial.println("[HTTP] GET /download - No Authorization header");
@@ -285,7 +286,7 @@ server.on("/api/auth-check", HTTP_GET, [](AsyncWebServerRequest *request) {
             Serial.println("[HTTP] GET /download - Invalid token");
             request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
             return;
-        }
+        } */
 
 
         String filename = request->getParam("file")->value();

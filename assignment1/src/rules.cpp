@@ -126,8 +126,13 @@ void loadRules() {
         return;
     }
 
+    Serial.println("Loading rules...");
+    JsonArray rulesArray = doc["rules"].as<JsonArray>();
+    Serial.printf("Found %d rules\n", rulesArray.size());
+    Serial.println("----");
+
     rules.clear();
-    for (JsonObject ruleObj : doc.as<JsonArray>()) {
+    for (JsonObject ruleObj : rulesArray) {
         RuleSet rule;
         rule.name = ruleObj["name"].as<String>();
         rule.description = ruleObj["description"].as<String>();
@@ -147,6 +152,10 @@ void loadRules() {
         // Load main condition group
         JsonObject conditionsObj = ruleObj["conditions"];
         rule.conditions = loadConditionGroup(conditionsObj);
+        Serial.println("Main Conditions:");
+        for (const Condition &condition : rule.conditions.conditions) {
+            Serial.printf("%s %s %.2f\n", condition.field.c_str(), condition.operator_.c_str(), condition.value);
+        }
 
         // Load actions
         for (JsonObject actionObj : ruleObj["actions"].as<JsonArray>()) {
@@ -154,6 +163,8 @@ void loadRules() {
             action.type = actionObj["type"].as<String>();
             action.target_temp = actionObj["target_temp"].as<float>();
             action.increment_value = actionObj["increment_value"].as<float>();
+            Serial.printf("Action: %s\n", action.type.c_str());
+            Serial.printf("Target Temp: %.2f, Increment: %.2f\n", action.target_temp, action.increment_value);
 
             // Load repeat_if condition
             JsonObject repeatIfObj = actionObj["repeat_if"];
@@ -161,12 +172,17 @@ void loadRules() {
                 action.repeat_if.field = repeatIfObj["field"].as<String>();
                 action.repeat_if.operator_ = repeatIfObj["operator"].as<String>();
                 action.repeat_if.value = repeatIfObj["value"].as<float>();
+                Serial.printf("Repeat If: %s %s %.2f\n", action.repeat_if.field.c_str(), action.repeat_if.operator_.c_str(), action.repeat_if.value);
             }
 
             // Load additional condition group for action
             JsonObject conditionGroupObj = actionObj["condition"];
             if (!conditionGroupObj.isNull()) {
                 action.condition = loadConditionGroup(conditionGroupObj);
+                Serial.println("Additional Conditions:");
+                for (const Condition &condition : action.condition.conditions) {
+                    Serial.printf("%s %s %.2f\n", condition.field.c_str(), condition.operator_.c_str(), condition.value);
+                }
             }
 
             rule.actions.push_back(action);
@@ -263,19 +279,23 @@ ConditionGroup loadConditionGroup(const JsonObject &groupObj) {
 
 // Helper to save a ConditionGroup to JSON
 void saveConditionGroup(const ConditionGroup &group, JsonObject &groupObj) {
+    Serial.printf("Saving group with %d conditions and %d groups\n", group.conditions.size(), group.groups.size());
     groupObj["operator"] = group.operator_;
     JsonArray conditions = groupObj.createNestedArray("conditions");
+    Serial.printf("Operator: %s\n", group.operator_.c_str());
 
     for (const Condition &condition : group.conditions) {
         JsonObject conditionObj = conditions.createNestedObject();
         conditionObj["field"] = condition.field;
         conditionObj["operator"] = condition.operator_;
         conditionObj["value"] = condition.value;
+        Serial.printf("Condition: %s %s %.2f\n", condition.field.c_str(), condition.operator_.c_str(), condition.value);
     }
 
     for (const ConditionGroup &nestedGroup : group.groups) {
         JsonObject nestedGroupObj = conditions.createNestedObject();
         saveConditionGroup(nestedGroup, nestedGroupObj);
+        Serial.println("Nested group saved");
     }
 }
 

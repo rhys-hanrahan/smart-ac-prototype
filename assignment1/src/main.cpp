@@ -296,6 +296,10 @@ void setup() {
   Serial.printf("Season: %s\n", getCurrentSeason().c_str());
   Serial.printf("Hemisphere: %s\n", determineHemisphere().c_str());
 
+  // Load rules
+  loadRules();
+  Serial.printf("Loaded %d rules\n", rules.size());
+
   Serial.println("SmartAC Remote is ready");
 }
 
