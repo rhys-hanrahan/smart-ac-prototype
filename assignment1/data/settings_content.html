@@ -9,12 +9,28 @@
     </div>
     <div class="card-body">
       <div class="mb-3">
+        <label for="wifi-security" class="form-label">Security</label>
+        <select class="form-select" id="wifi-security" name="wifi-security" required>
+          <option value="WPA2">WPA2</option>
+          <option value="WPA">WPA</option>
+          <option value="WPA2-Enterprise">WPA2 Enterprise</option>
+        </select>
+      </div>
+      <div class="mb-3">
         <label for="wifi-ssid" class="form-label">SSID</label>
         <input type="text" class="form-control" id="wifi-ssid" name="wifi-ssid" required>
       </div>
       <div class="mb-3">
         <label for="wifi-password" class="form-label">Password</label>
         <input type="password" class="form-control" id="wifi-password" name="wifi-password" required>
+      </div>
+      <div class="mb-3">
+        <label for="wifi-username" class="form-label">Username (WPA Enterprise)</label>
+        <input type="text" class="form-control" id="wifi-username" name="wifi-username">
+      </div>
+      <div class="mb-3">
+        <label for="wifi-identity" class="form-label">Identity (WPA Enterprise)</label>
+        <input type="text" class="form-control" id="wifi-identity" name="wifi-identity">
       </div>
     </div>
   </div>

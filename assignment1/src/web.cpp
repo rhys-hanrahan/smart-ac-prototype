@@ -119,6 +119,59 @@ void setupWebServer() {
     request->redirect("/login");
   });
 
+  /* These must be gzipped due to space */
+  server.on("/css/bootstrap.min.css", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(SPIFFS, "/css/bootstrap.min.css.gz", "text/css");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  }); 
+
+  server.on("/css/fontawesome.min.css", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(SPIFFS, "/css/fontawesome.min.css.gz", "text/css");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  });
+
+  server.on("/css/solid.min.css", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(SPIFFS, "/css/solid.min.css.gz", "text/css");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  });
+
+  server.on("/webfonts/fa-solid-900.woff2", HTTP_GET, [](AsyncWebServerRequest* request) {
+    Serial.println("Request received for /webfonts/fa-solid-900.woff2");
+    if (SPIFFS.exists("/wf/fa-solid-900.woff2.gz")) {
+        Serial.println("Found file /wf/fa-solid-900.woff2.gz in SPIFFS");
+        AsyncWebServerResponse* response = request->beginResponse(SPIFFS, "/wf/fa-solid-900.woff2.gz", "font/woff2");
+        response->addHeader("Content-Encoding", "gzip");
+        request->send(response);
+    } else {
+        Serial.println("File /wf/fa-solid-900.woff2.gz not found in SPIFFS");
+        request->send(404, "text/plain", "File Not Found");
+    }
+  });
+
+  server.on("/webfonts/fa-solid-900.ttf", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (SPIFFS.exists("/wf/fa-solid-900.ttf")) {
+        AsyncWebServerResponse* response = request->beginResponse(SPIFFS, "/wf/fa-solid-900.ttf", "font/ttf");
+        request->send(response);
+    } else {
+        request->send(404, "text/plain", "File Not Found");
+    }
+  });
+
+  server.on("/js/bootstrap.bundle.min.js", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(SPIFFS, "/js/bootstrap.bundle.min.js.gz", "application/javascript");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  });
+
+  server.on("/js/chart.4.4.6.min.js", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(SPIFFS, "/js/chart.4.4.6.min.js.gz", "application/javascript");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  });
+
   server.serveStatic("/css", SPIFFS, "/css");
   server.serveStatic("/js", SPIFFS, "/js");
 

@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include "esp_wpa2.h" //For WPA Enterprise
 #include "ThingSpeak.h"
 #include <DHT.h>
 #include <IRremoteESP8266.h>
@@ -256,6 +257,16 @@ void setup() {
 
   if (config.wifi_ssid.length() > 0) {
     Serial.println("Found saved WiFi credentials for: " + config.wifi_ssid);
+
+    if (config.wifi_security == "WPA2-Enterprise") {
+      WiFi.disconnect(true);
+      Serial.println("Connecting to WPA2-Enterprise WiFi...");
+      esp_wifi_sta_wpa2_ent_set_identity((uint8_t *)config.wifi_identity.c_str(), config.wifi_identity.length());
+      esp_wifi_sta_wpa2_ent_set_username((uint8_t *)config.wifi_username.c_str(), config.wifi_username.length());
+      esp_wifi_sta_wpa2_ent_set_password((uint8_t *)config.wifi_password.c_str(), config.wifi_password.length());
+      esp_wifi_sta_wpa2_ent_enable();
+    }
+
     Serial.println("Connecting to WiFi...");
     WiFi.begin(config.wifi_ssid.c_str(), config.wifi_password.c_str());
     while (WiFi.status() != WL_CONNECTED) {

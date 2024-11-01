@@ -29,6 +29,9 @@ void applyJsonToConfig(const DynamicJsonDocument& doc) {
   config.web_userpass = doc["login"]["password"].as<String>();
   config.wifi_ssid = doc["wifi"]["ssid"].as<String>();
   config.wifi_password = doc["wifi"]["password"].as<String>();
+  config.wifi_username = doc["wifi"]["username"].as<String>();
+  config.wifi_identity = doc["wifi"]["identity"].as<String>();
+  config.wifi_security = doc["wifi"]["security"].as<String>();
   config.jwt_secret = doc["jwt_secret"].as<String>();
   config.timezone = doc["timezone"].as<String>();
   config.posix_tz = getPosixTzFromTimezone(config.timezone);
@@ -70,6 +73,9 @@ DynamicJsonDocument getConfigJson() {
   doc["login"]["password"] = config.web_userpass;
   doc["wifi"]["ssid"] = config.wifi_ssid;
   doc["wifi"]["password"] = config.wifi_password;
+  doc["wifi"]["username"] = config.wifi_username;
+  doc["wifi"]["identity"] = config.wifi_identity;
+  doc["wifi"]["security"] = config.wifi_security;
   doc["jwt_secret"] = config.jwt_secret;
   doc["timezone"] = config.timezone;
 

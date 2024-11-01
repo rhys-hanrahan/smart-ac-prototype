@@ -15,6 +15,9 @@ DynamicJsonDocument getConfigJson();
 struct Config {
   String wifi_ssid;
   String wifi_password; //Wifi Password
+  String wifi_username; //Wifi Username for WPA2-Enterprise
+  String wifi_identity; //Wifi Identity for WPA2-Enterprise
+  String wifi_security; //Wifi Security (WPA, WPA2, WPA2-Enterprise)
   String web_username; //Web username
   String web_userpass; //Web password
   String jwt_secret; //JWT Secret
