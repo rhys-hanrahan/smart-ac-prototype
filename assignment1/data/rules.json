@@ -1,0 +1,95 @@
+{
+  "rules": [
+    {
+      "name": "Night Comfort Zone",
+      "description": "Adjust temperature at night based on 'feels like' temperature",
+      "timeframe": {
+        "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+        "start_time": "21:00",
+        "end_time": "10:00",
+        "seasons": ["winter", "autumn", "spring"]
+      },
+      "conditions": {
+        "operator": "AND",
+        "conditions": [
+          {
+            "field": "feels_like_temp",
+            "operator": ">",
+            "value": 22
+          },
+          {
+            "field": "time_of_day",
+            "operator": "between",
+            "start": "21:00",
+            "end": "10:00"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "set_temp",
+          "target_temp": 22,
+          "repeat_if": {
+            "field": "feels_like_temp",
+            "operator": ">=",
+            "value": 22
+          }
+        },
+        {
+          "type": "increment_temp",
+          "increment_value": 2,
+          "condition": {
+            "operator": "AND",
+            "conditions": [
+              {
+                "field": "feels_like_temp",
+                "operator": "<",
+                "value": 20
+              },
+              {
+                "field": "target_temp",
+                "operator": "<",
+                "value": 22
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Daytime Energy Saver",
+      "description": "Reduce AC usage during peak daytime hours",
+      "timeframe": {
+        "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        "start_time": "12:00",
+        "end_time": "18:00",
+        "seasons": ["summer"]
+      },
+      "conditions": {
+        "operator": "OR",
+        "conditions": [
+          {
+            "field": "feels_like_temp",
+            "operator": ">",
+            "value": 28
+          },
+          {
+            "field": "temperature",
+            "operator": ">",
+            "value": 26
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "set_mode",
+          "mode": "energy_saver"
+        },
+        {
+          "type": "set_temp",
+          "target_temp": 24
+        }
+      ]
+    }
+  ]
+}

@@ -169,6 +169,15 @@ void setup() {
   }
   Serial.println("SPIFFS is mounted");
 
+  // Print SPIFFS info
+  size_t totalBytes = SPIFFS.totalBytes();
+  size_t usedBytes = SPIFFS.usedBytes();
+  size_t freeBytes = totalBytes - usedBytes;
+
+  Serial.printf("Total SPIFFS size: %u bytes\n", totalBytes);
+  Serial.printf("Used SPIFFS size: %u bytes\n", usedBytes);
+  Serial.printf("Free SPIFFS space: %u bytes\n", freeBytes);
+
   const char* path = "/sample_data.bin";
   generateSampleData(path);
 
